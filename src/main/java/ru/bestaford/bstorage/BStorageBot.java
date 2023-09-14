@@ -9,6 +9,9 @@ import com.pengrad.telegrambot.model.User;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -19,6 +22,7 @@ public class BStorageBot {
     public final Logger logger;
     public final TelegramBot bot;
     public final Map<String, String> mediaGroupIdToCaptionMap;
+    public final Connection connection;
 
     public BStorageBot() {
         logger = LoggerFactory.getLogger(getClass());
@@ -28,6 +32,11 @@ public class BStorageBot {
         }
         bot = new TelegramBot(token);
         mediaGroupIdToCaptionMap = new HashMap<>();
+        try {
+            connection = DriverManager.getConnection("jdbc:h2:./bstorage");
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     public void start() {
@@ -78,6 +87,11 @@ public class BStorageBot {
 
     public void stop() {
         logger.info("Shutting down...");
+        try {
+            connection.close();
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
         bot.removeGetUpdatesListener();
         bot.shutdown();
     }
