@@ -14,10 +14,9 @@ import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 
 public class BStorageBot {
-
-    public static final String ENV_BOT_TOKEN = "BSTORAGE_BOT_TOKEN";
 
     public final Logger logger;
     public final TelegramBot bot;
@@ -26,11 +25,7 @@ public class BStorageBot {
 
     public BStorageBot() {
         logger = LoggerFactory.getLogger(getClass());
-        String token = System.getenv(ENV_BOT_TOKEN);
-        if (token == null || token.isBlank()) {
-            exit("Missing environment variable " + ENV_BOT_TOKEN);
-        }
-        bot = new TelegramBot(token);
+        bot = new TelegramBot(getenv("BSTORAGE_BOT_TOKEN"));
         mediaGroupIdToCaptionMap = new HashMap<>();
         try {
             connection = DriverManager.getConnection("jdbc:h2:./bstorage");
@@ -96,9 +91,8 @@ public class BStorageBot {
         bot.shutdown();
     }
 
-    public void exit(String message) {
-        logger.error(message);
-        Runtime.getRuntime().exit(1);
+    public static String getenv(String name) {
+        return Objects.requireNonNull(System.getenv(name), "Missing environment variable " + name);
     }
 
     public static void main(String[] args) {
