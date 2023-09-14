@@ -54,7 +54,7 @@ public class BStorageBot {
         if (photoSizes == null) {
             return;
         }
-        PhotoSize photo = photoSizes[0];
+        PhotoSize photo = photoSizes[photoSizes.length - 1];
         String mediaGroupId = message.mediaGroupId();
         String caption = message.caption();
         if (caption == null) {
