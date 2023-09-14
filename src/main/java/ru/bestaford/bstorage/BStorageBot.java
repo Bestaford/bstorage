@@ -5,8 +5,12 @@ import com.pengrad.telegrambot.UpdatesListener;
 import com.pengrad.telegrambot.model.Message;
 import com.pengrad.telegrambot.model.PhotoSize;
 import com.pengrad.telegrambot.model.Update;
+import com.pengrad.telegrambot.model.User;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.HashMap;
+import java.util.Map;
 
 public class BStorageBot {
 
@@ -14,6 +18,7 @@ public class BStorageBot {
 
     public final Logger logger;
     public final TelegramBot bot;
+    public final Map<String, String> mediaGroupIdToCaptionMap;
 
     public BStorageBot() {
         logger = LoggerFactory.getLogger(getClass());
@@ -22,6 +27,7 @@ public class BStorageBot {
             exit("Missing environment variable " + ENV_BOT_TOKEN);
         }
         bot = new TelegramBot(token);
+        mediaGroupIdToCaptionMap = new HashMap<>();
     }
 
     public void start() {
@@ -40,11 +46,34 @@ public class BStorageBot {
         if (message == null) {
             return;
         }
-        PhotoSize[] photo = message.photo();
-        if (photo == null) {
+        User user = message.from();
+        if (user == null) {
             return;
         }
-        logger.info(photo[0].fileId());
+        PhotoSize[] photoSizes = message.photo();
+        if (photoSizes == null) {
+            return;
+        }
+        PhotoSize photo = photoSizes[0];
+        String mediaGroupId = message.mediaGroupId();
+        String caption = message.caption();
+        if (caption == null) {
+            if (mediaGroupId != null) {
+                caption = mediaGroupIdToCaptionMap.get(mediaGroupId);
+                if (caption != null) {
+                    savePhoto(photo, caption);
+                }
+            }
+        } else {
+            if (mediaGroupId != null) {
+                mediaGroupIdToCaptionMap.put(mediaGroupId, caption);
+            }
+            savePhoto(photo, caption);
+        }
+    }
+
+    public void savePhoto(PhotoSize photo, String caption) {
+        logger.info(String.format("Saving file id %s with caption %s", photo.fileId(), caption));
     }
 
     public void stop() {
