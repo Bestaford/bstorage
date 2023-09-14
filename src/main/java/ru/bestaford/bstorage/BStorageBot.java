@@ -82,13 +82,13 @@ public class BStorageBot {
 
     public void stop() {
         logger.info("Shutting down...");
+        bot.removeGetUpdatesListener();
+        bot.shutdown();
         try {
             connection.close();
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
-        bot.removeGetUpdatesListener();
-        bot.shutdown();
     }
 
     public static String getenv(String name) {
