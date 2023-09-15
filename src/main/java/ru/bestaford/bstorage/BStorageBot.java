@@ -13,10 +13,8 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
+import java.sql.*;
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -83,11 +81,12 @@ public class BStorageBot {
     }
 
     public void savePhoto(User user, PhotoSize photo, String caption) throws SQLException {
-        PreparedStatement statement = connection.prepareStatement("MERGE INTO files VALUES (?, ?, ?, ?)");
+        PreparedStatement statement = connection.prepareStatement("MERGE INTO files VALUES (?, ?, ?, ?, ?)");
         statement.setString(1, photo.fileUniqueId());
         statement.setString(2, photo.fileId());
         statement.setString(3, caption);
         statement.setLong(4, user.id());
+        statement.setTimestamp(5, Timestamp.valueOf(LocalDateTime.now()));
         statement.execute();
     }
 
