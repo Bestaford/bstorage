@@ -15,6 +15,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.Map;
@@ -39,15 +40,18 @@ public class BStorageBot {
     public void start() {
         bot.setUpdatesListener(updates -> {
             for (Update update : updates) {
-                logger.debug(update.toString());
-                processUpdate(update);
+                try {
+                    processUpdate(update);
+                } catch (SQLException e) {
+                    throw new RuntimeException(e);
+                }
             }
             return UpdatesListener.CONFIRMED_UPDATES_ALL;
         });
         logger.info("Bot started");
     }
 
-    public void processUpdate(Update update) {
+    public void processUpdate(Update update) throws SQLException {
         Message message = update.message();
         if (message == null) {
             return;
@@ -67,19 +71,24 @@ public class BStorageBot {
             if (mediaGroupId != null) {
                 caption = mediaGroupIdToCaptionMap.get(mediaGroupId);
                 if (caption != null) {
-                    savePhoto(photo, caption);
+                    savePhoto(user, photo, caption);
                 }
             }
         } else {
             if (mediaGroupId != null) {
                 mediaGroupIdToCaptionMap.put(mediaGroupId, caption);
             }
-            savePhoto(photo, caption);
+            savePhoto(user, photo, caption);
         }
     }
 
-    public void savePhoto(PhotoSize photo, String caption) {
-        logger.info(String.format("Saving file id %s with caption %s", photo.fileId(), caption));
+    public void savePhoto(User user, PhotoSize photo, String caption) throws SQLException {
+        PreparedStatement statement = connection.prepareStatement("MERGE INTO files VALUES (?, ?, ?, ?)");
+        statement.setString(1, photo.fileUniqueId());
+        statement.setString(2, photo.fileId());
+        statement.setString(3, caption);
+        statement.setLong(4, user.id());
+        statement.execute();
     }
 
     public void stop() throws SQLException {
