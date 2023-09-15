@@ -39,6 +39,7 @@ public class BStorageBot {
         bot.setUpdatesListener(updates -> {
             for (Update update : updates) {
                 try {
+                    logger.debug(update.toString());
                     processUpdate(update);
                 } catch (SQLException e) {
                     throw new RuntimeException(e);
@@ -51,17 +52,11 @@ public class BStorageBot {
 
     public void processUpdate(Update update) throws SQLException {
         Message message = update.message();
-        if (message == null) {
-            return;
-        }
+        if (message == null) return;
         User user = message.from();
-        if (user == null) {
-            return;
-        }
+        if (user == null) return;
         PhotoSize[] photoSizes = message.photo();
-        if (photoSizes == null) {
-            return;
-        }
+        if (photoSizes == null) return;
         PhotoSize photo = photoSizes[photoSizes.length - 1];
         String mediaGroupId = message.mediaGroupId();
         String caption = message.caption();
@@ -82,11 +77,12 @@ public class BStorageBot {
 
     public void savePhoto(User user, PhotoSize photo, String caption) throws SQLException {
         PreparedStatement statement = connection.prepareStatement("MERGE INTO files VALUES (?, ?, ?, ?, ?)");
-        statement.setString(1, photo.fileUniqueId());
+        statement.setString(1, user.id() + photo.fileUniqueId());
         statement.setString(2, photo.fileId());
         statement.setString(3, caption);
         statement.setLong(4, user.id());
         statement.setTimestamp(5, Timestamp.valueOf(LocalDateTime.now()));
+        logger.debug(statement.toString());
         statement.execute();
     }
 
