@@ -40,8 +40,10 @@ public class BStorageBot {
             for (Update update : updates) {
                 try {
                     logger.debug(update.toString());
-                    processUpdate(update);
-                } catch (SQLException e) {
+                    if (!processUpdate(update)) {
+                        //TODO: send error message
+                    }
+                } catch (Exception e) {
                     throw new RuntimeException(e);
                 }
             }
@@ -50,13 +52,43 @@ public class BStorageBot {
         logger.info("Bot started");
     }
 
-    public void processUpdate(Update update) throws SQLException {
+    public boolean processUpdate(Update update) throws SQLException {
         Message message = update.message();
-        if (message == null) return;
+        if (message == null) {
+            return true;
+        }
         User user = message.from();
-        if (user == null) return;
+        if (user == null) {
+            return true;
+        }
         PhotoSize[] photoSizes = message.photo();
-        if (photoSizes == null) return;
+        if (photoSizes == null) {
+            String text = message.text();
+            if (text != null && !text.isBlank() && text.startsWith("/")) {
+                return processCommand(user, text.substring(1).toLowerCase().strip());
+            }
+        } else {
+            return processPhoto(message, user, photoSizes);
+        }
+        //TODO: send usage message
+        return true;
+    }
+
+    public boolean processCommand(User user, String command) {
+        switch (command) {
+            case "start":
+                logger.info("start"); //TODO: implement
+                break;
+            case "help":
+                logger.info("help"); //TODO: implement
+                break;
+            default:
+                logger.info("default"); //TODO: implement
+        }
+        return true;
+    }
+
+    public boolean processPhoto(Message message, User user, PhotoSize[] photoSizes) throws SQLException {
         PhotoSize photo = photoSizes[photoSizes.length - 1];
         String mediaGroupId = message.mediaGroupId();
         String caption = message.caption();
@@ -64,18 +96,19 @@ public class BStorageBot {
             if (mediaGroupId != null) {
                 caption = mediaGroupIdToCaptionMap.get(mediaGroupId);
                 if (caption != null) {
-                    savePhoto(user, photo, caption);
+                    return savePhoto(user, photo, caption);
                 }
             }
         } else {
             if (mediaGroupId != null) {
                 mediaGroupIdToCaptionMap.put(mediaGroupId, caption);
             }
-            savePhoto(user, photo, caption);
+            return savePhoto(user, photo, caption);
         }
+        return true;
     }
 
-    public void savePhoto(User user, PhotoSize photo, String caption) throws SQLException {
+    public boolean savePhoto(User user, PhotoSize photo, String caption) throws SQLException {
         PreparedStatement statement = connection.prepareStatement("MERGE INTO files VALUES (?, ?, ?, ?, ?)");
         statement.setString(1, user.id() + photo.fileUniqueId());
         statement.setString(2, photo.fileId());
@@ -83,7 +116,7 @@ public class BStorageBot {
         statement.setLong(4, user.id());
         statement.setTimestamp(5, Timestamp.valueOf(LocalDateTime.now()));
         logger.debug(statement.toString());
-        statement.execute();
+        return statement.execute();
     }
 
     public void stop() throws SQLException {
@@ -98,8 +131,7 @@ public class BStorageBot {
         ClassLoader classLoader = ClassLoader.getSystemClassLoader();
         try (InputStream is = classLoader.getResourceAsStream(fileName)) {
             if (is == null) return null;
-            try (InputStreamReader isr = new InputStreamReader(is);
-                 BufferedReader reader = new BufferedReader(isr)) {
+            try (InputStreamReader isr = new InputStreamReader(is); BufferedReader reader = new BufferedReader(isr)) {
                 return reader.lines().collect(Collectors.joining(System.lineSeparator()));
             }
         }
