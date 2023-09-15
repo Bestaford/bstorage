@@ -9,12 +9,17 @@ import com.pengrad.telegrambot.model.User;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 public class BStorageBot {
 
@@ -23,15 +28,12 @@ public class BStorageBot {
     public final Map<String, String> mediaGroupIdToCaptionMap;
     public final Connection connection;
 
-    public BStorageBot() {
+    public BStorageBot() throws SQLException, IOException {
         logger = LoggerFactory.getLogger(getClass());
         bot = new TelegramBot(getenv("BSTORAGE_BOT_TOKEN"));
         mediaGroupIdToCaptionMap = new HashMap<>();
-        try {
-            connection = DriverManager.getConnection("jdbc:h2:./bstorage");
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        }
+        connection = DriverManager.getConnection("jdbc:h2:./bstorage");
+        connection.createStatement().execute(getResourceFileAsString("bstorage.sql"));
     }
 
     public void start() {
@@ -80,14 +82,22 @@ public class BStorageBot {
         logger.info(String.format("Saving file id %s with caption %s", photo.fileId(), caption));
     }
 
-    public void stop() {
+    public void stop() throws SQLException {
         logger.info("Shutting down...");
+        connection.close();
         bot.removeGetUpdatesListener();
         bot.shutdown();
-        try {
-            connection.close();
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
+    }
+
+    //https://stackoverflow.com/a/46613809
+    public static String getResourceFileAsString(String fileName) throws IOException {
+        ClassLoader classLoader = ClassLoader.getSystemClassLoader();
+        try (InputStream is = classLoader.getResourceAsStream(fileName)) {
+            if (is == null) return null;
+            try (InputStreamReader isr = new InputStreamReader(is);
+                 BufferedReader reader = new BufferedReader(isr)) {
+                return reader.lines().collect(Collectors.joining(System.lineSeparator()));
+            }
         }
     }
 
@@ -95,11 +105,15 @@ public class BStorageBot {
         return Objects.requireNonNull(System.getenv(name), "Missing environment variable " + name);
     }
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws SQLException, IOException {
         BStorageBot bStorageBot = new BStorageBot();
         bStorageBot.start();
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            bStorageBot.stop();
+            try {
+                bStorageBot.stop();
+            } catch (SQLException e) {
+                throw new RuntimeException(e);
+            }
             Runtime.getRuntime().halt(0);
         }));
     }
