@@ -71,7 +71,7 @@ public class BStorageBot {
         PhotoSize[] photoSizes = message.photo();
         if (photoSizes == null) {
             String text = message.text();
-            if (text != null && !text.isBlank() && text.startsWith("/")) {
+            if (text != null && !text.isBlank() && text.startsWith("/") && text.length() > 1) {
                 processCommand(user, text.substring(1).toLowerCase().strip());
                 return;
             }
