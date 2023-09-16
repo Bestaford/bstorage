@@ -1,11 +1,14 @@
 package ru.bestaford.bstorage;
 
+import com.pengrad.telegrambot.Callback;
 import com.pengrad.telegrambot.TelegramBot;
 import com.pengrad.telegrambot.UpdatesListener;
 import com.pengrad.telegrambot.model.Message;
 import com.pengrad.telegrambot.model.PhotoSize;
 import com.pengrad.telegrambot.model.Update;
 import com.pengrad.telegrambot.model.User;
+import com.pengrad.telegrambot.request.SendMessage;
+import com.pengrad.telegrambot.response.SendResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -21,6 +24,12 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 
 public class BStorageBot {
+
+    public static final String MESSAGE_HELP = """
+            I can help you save and find photos by text search.
+            You can control me by sending these commands:
+            """;
+    public static final String MESSAGE_UNKNOWN_COMMAND = "Unknown command.";
 
     public final Logger logger;
     public final TelegramBot bot;
@@ -38,13 +47,19 @@ public class BStorageBot {
     public void start() {
         bot.setUpdatesListener(updates -> {
             for (Update update : updates) {
+                logger.debug(update.toString());
                 try {
-                    logger.debug(update.toString());
-                    if (!processUpdate(update)) {
-                        //TODO: send error message
+                    Message message = update.message();
+                    if (message == null) {
+                        continue;
                     }
+                    User user = message.from();
+                    if (user == null) {
+                        continue;
+                    }
+                    processMessage(message, user);
                 } catch (Exception e) {
-                    throw new RuntimeException(e);
+                    logger.error("Failed to process update", e);
                 }
             }
             return UpdatesListener.CONFIRMED_UPDATES_ALL;
@@ -52,43 +67,46 @@ public class BStorageBot {
         logger.info("Bot started");
     }
 
-    public boolean processUpdate(Update update) throws SQLException {
-        Message message = update.message();
-        if (message == null) {
-            return true;
-        }
-        User user = message.from();
-        if (user == null) {
-            return true;
-        }
+    public void processMessage(Message message, User user) throws SQLException {
         PhotoSize[] photoSizes = message.photo();
         if (photoSizes == null) {
             String text = message.text();
             if (text != null && !text.isBlank() && text.startsWith("/")) {
-                return processCommand(user, text.substring(1).toLowerCase().strip());
+                processCommand(user, text.substring(1).toLowerCase().strip());
+                return;
             }
         } else {
-            return processPhoto(message, user, photoSizes);
+            processPhoto(message, user, photoSizes);
+            return;
         }
-        //TODO: send usage message
-        return true;
+        sendMessage(user, MESSAGE_HELP);
     }
 
-    public boolean processCommand(User user, String command) {
+    private void sendMessage(User user, String text) {
+        bot.execute(new SendMessage(user.id(), text), new Callback<SendMessage, SendResponse>() {
+            @Override
+            public void onResponse(SendMessage request, SendResponse response) {
+
+            }
+
+            @Override
+            public void onFailure(SendMessage request, IOException exception) {
+                logger.error("Failed to send message", exception);
+            }
+        });
+    }
+
+    public void processCommand(User user, String command) {
         switch (command) {
-            case "start":
-                logger.info("start"); //TODO: implement
-                break;
-            case "help":
-                logger.info("help"); //TODO: implement
+            case "start", "help":
+                sendMessage(user, MESSAGE_HELP);
                 break;
             default:
-                logger.info("default"); //TODO: implement
+                sendMessage(user, MESSAGE_UNKNOWN_COMMAND);
         }
-        return true;
     }
 
-    public boolean processPhoto(Message message, User user, PhotoSize[] photoSizes) throws SQLException {
+    public void processPhoto(Message message, User user, PhotoSize[] photoSizes) throws SQLException {
         PhotoSize photo = photoSizes[photoSizes.length - 1];
         String mediaGroupId = message.mediaGroupId();
         String caption = message.caption();
@@ -96,19 +114,18 @@ public class BStorageBot {
             if (mediaGroupId != null) {
                 caption = mediaGroupIdToCaptionMap.get(mediaGroupId);
                 if (caption != null) {
-                    return savePhoto(user, photo, caption);
+                    savePhoto(user, photo, caption);
                 }
             }
         } else {
             if (mediaGroupId != null) {
                 mediaGroupIdToCaptionMap.put(mediaGroupId, caption);
             }
-            return savePhoto(user, photo, caption);
+            savePhoto(user, photo, caption);
         }
-        return true;
     }
 
-    public boolean savePhoto(User user, PhotoSize photo, String caption) throws SQLException {
+    public void savePhoto(User user, PhotoSize photo, String caption) throws SQLException {
         PreparedStatement statement = connection.prepareStatement("MERGE INTO files VALUES (?, ?, ?, ?, ?)");
         statement.setString(1, user.id() + photo.fileUniqueId());
         statement.setString(2, photo.fileId());
@@ -116,7 +133,11 @@ public class BStorageBot {
         statement.setLong(4, user.id());
         statement.setTimestamp(5, Timestamp.valueOf(LocalDateTime.now()));
         logger.debug(statement.toString());
-        return statement.execute();
+        try {
+            statement.execute();
+        } catch (SQLException e) {
+            logger.error("Failed to execute statement", e);
+        }
     }
 
     public void stop() throws SQLException {
