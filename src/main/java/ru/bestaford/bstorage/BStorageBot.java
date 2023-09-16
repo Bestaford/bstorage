@@ -25,12 +25,6 @@ import java.util.stream.Collectors;
 
 public class BStorageBot {
 
-    public static final String MESSAGE_HELP = """
-            I can help you save and find photos by text search.
-            You can control me by sending these commands:
-            """;
-    public static final String MESSAGE_UNKNOWN_COMMAND = "Unknown command.";
-
     public final Logger logger;
     public final TelegramBot bot;
     public final Map<String, String> mediaGroupIdToCaptionMap;
@@ -71,38 +65,30 @@ public class BStorageBot {
         PhotoSize[] photoSizes = message.photo();
         if (photoSizes == null) {
             String text = message.text();
-            if (text != null && !text.isBlank() && text.startsWith("/") && text.length() > 1) {
-                processCommand(user, text.substring(1).toLowerCase().strip());
+            if (text != null && !text.isBlank()) {
+                processText(text, user);
                 return;
             }
         } else {
             processPhoto(message, user, photoSizes);
             return;
         }
-        sendMessage(user, MESSAGE_HELP);
+        sendMessage(user, "help");
     }
 
-    private void sendMessage(User user, String text) {
-        bot.execute(new SendMessage(user.id(), text), new Callback<SendMessage, SendResponse>() {
-            @Override
-            public void onResponse(SendMessage request, SendResponse response) {
-
+    public void processText(String text, User user) {
+        text = text.strip().toLowerCase();
+        if (text.startsWith("/")) {
+            switch (text.substring(1)) {
+                case "start":
+                    sendMessage(user, "start command");
+                    break;
+                case "help":
+                    sendMessage(user, "help command");
+                    break;
             }
-
-            @Override
-            public void onFailure(SendMessage request, IOException exception) {
-                logger.error("Failed to send message", exception);
-            }
-        });
-    }
-
-    public void processCommand(User user, String command) {
-        switch (command) {
-            case "start", "help":
-                sendMessage(user, MESSAGE_HELP);
-                break;
-            default:
-                sendMessage(user, MESSAGE_UNKNOWN_COMMAND);
+        } else {
+            sendMessage(user, "search by text");
         }
     }
 
@@ -138,6 +124,20 @@ public class BStorageBot {
         } catch (SQLException e) {
             logger.error("Failed to execute statement", e);
         }
+    }
+
+    public void sendMessage(User user, String text) {
+        bot.execute(new SendMessage(user.id(), text), new Callback<SendMessage, SendResponse>() {
+            @Override
+            public void onResponse(SendMessage request, SendResponse response) {
+
+            }
+
+            @Override
+            public void onFailure(SendMessage request, IOException exception) {
+                logger.error("Failed to send message", exception);
+            }
+        });
     }
 
     public void stop() throws SQLException {
