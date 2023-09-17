@@ -52,8 +52,8 @@ public class BStorageBot {
                 }
                 try {
                     processMessage(message, user);
-                } catch (Exception e) {
-                    logger.error("Failed to process message", e);
+                } catch (SQLException e) {
+                    throw new RuntimeException(e);
                 }
             }
             return UpdatesListener.CONFIRMED_UPDATES_ALL;
@@ -119,11 +119,7 @@ public class BStorageBot {
         statement.setLong(4, user.id());
         statement.setTimestamp(5, Timestamp.valueOf(LocalDateTime.now()));
         logger.debug(statement.toString());
-        try {
-            statement.execute();
-        } catch (SQLException e) {
-            logger.error("Failed to execute statement", e);
-        }
+        statement.execute();
         if (statement.getUpdateCount() == 1) {
             sendMessage(user, "saved"); //TODO: change text
         } else {
