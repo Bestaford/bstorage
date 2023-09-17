@@ -129,6 +129,7 @@ public class BStorageBot {
                 caption = mediaGroupIdToCaptionMap.get(mediaGroupId);
                 if (caption != null) {
                     savePhoto(user, photo, caption);
+                    return;
                 }
             }
         } else {
@@ -136,7 +137,9 @@ public class BStorageBot {
                 mediaGroupIdToCaptionMap.put(mediaGroupId, caption);
             }
             savePhoto(user, photo, caption);
+            return;
         }
+        savePhoto(user, photo, null);
     }
 
     public void savePhoto(User user, PhotoSize photo, String caption) throws SQLException {
