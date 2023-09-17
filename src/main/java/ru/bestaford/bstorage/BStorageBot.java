@@ -120,13 +120,14 @@ public class BStorageBot {
         statement.setTimestamp(5, Timestamp.valueOf(LocalDateTime.now()));
         logger.debug(statement.toString());
         try {
-            if (statement.execute()) {
-                sendMessage(user, "saved"); //TODO: change text
-            } else {
-                sendMessage(user, "save error"); //TODO: change text
-            }
+            statement.execute();
         } catch (SQLException e) {
             logger.error("Failed to execute statement", e);
+        }
+        if (statement.getUpdateCount() == 1) {
+            sendMessage(user, "saved"); //TODO: change text
+        } else {
+            sendMessage(user, "save error"); //TODO: change text
         }
     }
 
