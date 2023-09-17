@@ -42,18 +42,18 @@ public class BStorageBot {
         bot.setUpdatesListener(updates -> {
             for (Update update : updates) {
                 logger.debug(update.toString());
+                Message message = update.message();
+                if (message == null) {
+                    continue;
+                }
+                User user = message.from();
+                if (user == null) {
+                    continue;
+                }
                 try {
-                    Message message = update.message();
-                    if (message == null) {
-                        continue;
-                    }
-                    User user = message.from();
-                    if (user == null) {
-                        continue;
-                    }
                     processMessage(message, user);
                 } catch (Exception e) {
-                    logger.error("Failed to process update", e);
+                    logger.error("Failed to process message", e);
                 }
             }
             return UpdatesListener.CONFIRMED_UPDATES_ALL;
@@ -73,7 +73,7 @@ public class BStorageBot {
             processPhoto(message, user, photoSizes);
             return;
         }
-        sendMessage(user, "help");
+        sendMessage(user, "help"); //TODO: change text
     }
 
     public void processText(String text, User user) {
@@ -81,14 +81,14 @@ public class BStorageBot {
         if (text.startsWith("/")) {
             switch (text.substring(1)) {
                 case "start":
-                    sendMessage(user, "start command");
+                    sendMessage(user, "start command"); //TODO: change text
                     break;
                 case "help":
-                    sendMessage(user, "help command");
+                    sendMessage(user, "help command"); //TODO: change text
                     break;
             }
         } else {
-            sendMessage(user, "search by text");
+            sendMessage(user, "search by text"); //TODO: change text
         }
     }
 
@@ -120,7 +120,11 @@ public class BStorageBot {
         statement.setTimestamp(5, Timestamp.valueOf(LocalDateTime.now()));
         logger.debug(statement.toString());
         try {
-            statement.execute();
+            if (statement.execute()) {
+                sendMessage(user, "saved"); //TODO: change text
+            } else {
+                sendMessage(user, "save error"); //TODO: change text
+            }
         } catch (SQLException e) {
             logger.error("Failed to execute statement", e);
         }
@@ -147,7 +151,7 @@ public class BStorageBot {
         bot.shutdown();
     }
 
-    //https://stackoverflow.com/a/46613809
+    /* https://stackoverflow.com/a/46613809 */
     public static String getResourceFileAsString(String fileName) throws IOException {
         ClassLoader classLoader = ClassLoader.getSystemClassLoader();
         try (InputStream is = classLoader.getResourceAsStream(fileName)) {
