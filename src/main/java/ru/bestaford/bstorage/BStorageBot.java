@@ -9,6 +9,7 @@ import com.pengrad.telegrambot.model.Update;
 import com.pengrad.telegrambot.model.User;
 import com.pengrad.telegrambot.request.SendMessage;
 import com.pengrad.telegrambot.response.SendResponse;
+import org.h2.fulltext.FullText;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,6 +37,12 @@ public class BStorageBot {
         mediaGroupIdToCaptionMap = new HashMap<>();
         connection = DriverManager.getConnection("jdbc:h2:./bstorage");
         connection.createStatement().execute(getResourceFileAsString("bstorage.sql"));
+        DatabaseMetaData metaData = connection.getMetaData();
+        ResultSet resultSet = metaData.getTables(null, "FT", null, null);
+        if (!resultSet.next()) {
+            FullText.init(connection);
+            FullText.createIndex(connection, "PUBLIC", "FILES", null);
+        }
     }
 
     public void start() {
