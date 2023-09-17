@@ -19,9 +19,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.sql.*;
 import java.time.LocalDateTime;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 import java.util.stream.Collectors;
 
 public class BStorageBot {
@@ -83,7 +81,7 @@ public class BStorageBot {
         sendMessage(user, "help"); //TODO: change text
     }
 
-    public void processText(String text, User user) {
+    public void processText(String text, User user) throws SQLException {
         text = text.strip().toLowerCase();
         if (text.startsWith("/")) {
             switch (text.substring(1)) {
@@ -95,8 +93,31 @@ public class BStorageBot {
                     break;
             }
         } else {
-            sendMessage(user, "search by text"); //TODO: change text
+            List<String> files = findFilesByTags(text);
+            for (String file : files) { //TODO: send photo
+                sendMessage(user, file);
+            }
         }
+    }
+
+    public List<String> findFilesByTags(String tags) throws SQLException {
+        List<String> files = new ArrayList<>();
+        PreparedStatement statement = connection.prepareStatement("SELECT * FROM FT_SEARCH(?, 0, 0)");
+        statement.setString(1, tags);
+        statement.execute();
+        ResultSet resultSet = statement.getResultSet();
+        while (resultSet.next()) {
+            files.add(queryFile(resultSet.getString(1)));
+        }
+        return files;
+    }
+
+    public String queryFile(String query) throws SQLException {
+        Statement statement = connection.createStatement();
+        statement.execute("SELECT * FROM " + query);
+        ResultSet resultSet = statement.getResultSet();
+        resultSet.next();
+        return resultSet.getString(2);
     }
 
     public void processPhoto(Message message, User user, PhotoSize[] photoSizes) throws SQLException {
