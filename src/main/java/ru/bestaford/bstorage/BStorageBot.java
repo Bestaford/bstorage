@@ -112,7 +112,7 @@ public class BStorageBot {
     }
 
     public void savePhoto(User user, PhotoSize photo, String caption) throws SQLException {
-        PreparedStatement statement = connection.prepareStatement("MERGE INTO files VALUES (?, ?, ?, ?, ?)");
+        PreparedStatement statement = connection.prepareStatement("MERGE INTO FILES VALUES (?, ?, ?, ?, ?)");
         statement.setString(1, user.id() + photo.fileUniqueId());
         statement.setString(2, photo.fileId());
         statement.setString(3, caption);
