@@ -98,8 +98,12 @@ public class BStorageBot {
 
     public void findPhotos(String tags, User user) throws SQLException {
         List<String> fileIds = findFileIdsByTags(tags);
-        for (String fileId : fileIds) { //TODO: send photo
-            sendMessage(user, fileId);
+        if (fileIds.isEmpty()) {
+            sendMessage(user, "nothing found"); //TODO: change text
+        } else {
+            for (String fileId : fileIds) { //TODO: send photo
+                sendMessage(user, fileId);
+            }
         }
     }
 
