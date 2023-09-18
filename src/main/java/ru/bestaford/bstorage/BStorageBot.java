@@ -110,7 +110,7 @@ public class BStorageBot {
     public List<String> findFileIdsByTags(String tags) {
         List<String> fileIds = new ArrayList<>();
         try {
-            ResultSet resultSet = FullTextLucene.search(connection, tags, 0, 0);
+            ResultSet resultSet = FullTextLucene.search(connection, tags, 20, 0);
             while (resultSet.next()) {
                 String queryText = resultSet.getString(1);
                 fileIds.add(queryFileId(queryText));
