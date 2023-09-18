@@ -109,19 +109,17 @@ public class BStorageBot {
 
     public List<String> findFileIdsByTags(String tags) throws SQLException {
         List<String> fileIds = new ArrayList<>();
-        PreparedStatement statement = connection.prepareStatement("SELECT * FROM FT_SEARCH(?, 0, 0)");
-        statement.setString(1, tags);
-        statement.execute();
-        ResultSet resultSet = statement.getResultSet();
+        ResultSet resultSet = FullText.search(connection, tags, 0, 0);
         while (resultSet.next()) {
-            fileIds.add(queryFileId(resultSet.getString(1)));
+            String queryText = resultSet.getString(1);
+            fileIds.add(queryFileId(queryText));
         }
         return fileIds;
     }
 
-    public String queryFileId(String query) throws SQLException {
+    public String queryFileId(String queryText) throws SQLException {
         Statement statement = connection.createStatement();
-        statement.execute("SELECT * FROM " + query);
+        statement.execute("SELECT * FROM " + queryText);
         ResultSet resultSet = statement.getResultSet();
         resultSet.next();
         return resultSet.getString(2);
