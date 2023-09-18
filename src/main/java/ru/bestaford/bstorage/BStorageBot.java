@@ -81,7 +81,7 @@ public class BStorageBot {
         sendMessage(user, "help"); //TODO: change text
     }
 
-    public void processText(String text, User user) throws SQLException {
+    public void processText(String text, User user) {
         text = text.strip().toLowerCase();
         if (text.startsWith("/")) {
             text = text.substring(1);
@@ -96,7 +96,7 @@ public class BStorageBot {
         }
     }
 
-    public void findPhotos(String tags, User user) throws SQLException {
+    public void findPhotos(String tags, User user) {
         List<String> fileIds = findFileIdsByTags(tags);
         if (fileIds.isEmpty()) {
             sendMessage(user, "nothing found"); //TODO: change text
@@ -107,12 +107,16 @@ public class BStorageBot {
         }
     }
 
-    public List<String> findFileIdsByTags(String tags) throws SQLException {
+    public List<String> findFileIdsByTags(String tags) {
         List<String> fileIds = new ArrayList<>();
-        ResultSet resultSet = FullTextLucene.search(connection, tags, 0, 0);
-        while (resultSet.next()) {
-            String queryText = resultSet.getString(1);
-            fileIds.add(queryFileId(queryText));
+        try {
+            ResultSet resultSet = FullTextLucene.search(connection, tags, 0, 0);
+            while (resultSet.next()) {
+                String queryText = resultSet.getString(1);
+                fileIds.add(queryFileId(queryText));
+            }
+        } catch (SQLException e) {
+            logger.error("Failed to parse tags", e);
         }
         return fileIds;
     }
