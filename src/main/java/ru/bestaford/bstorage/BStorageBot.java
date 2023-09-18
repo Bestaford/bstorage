@@ -58,7 +58,7 @@ public class BStorageBot {
                 try {
                     processMessage(message, user);
                 } catch (SQLException e) {
-                    throw new RuntimeException(e);
+                    logger.error("Failed to process message", e);
                 }
             }
             return UpdatesListener.CONFIRMED_UPDATES_ALL;
