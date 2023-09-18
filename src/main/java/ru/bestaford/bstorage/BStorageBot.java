@@ -84,35 +84,38 @@ public class BStorageBot {
     public void processText(String text, User user) throws SQLException {
         text = text.strip().toLowerCase();
         if (text.startsWith("/")) {
-            switch (text.substring(1)) {
-                case "start":
-                    sendMessage(user, "start command"); //TODO: change text
-                    break;
-                case "help":
-                    sendMessage(user, "help command"); //TODO: change text
-                    break;
-            }
-        } else {
-            List<String> files = findFilesByTags(text);
-            for (String file : files) { //TODO: send photo
-                sendMessage(user, file);
-            }
+            text = text.substring(1);
+        }
+        switch (text) {
+            case "start" -> sendMessage(user, "start command"); //TODO: change text
+            case "help" -> sendMessage(user, "help command"); //TODO: change text
+            case "last" -> sendMessage(user, "last command"); //TODO: change text
+            case "latest" -> sendMessage(user, "latest command"); //TODO: change text
+            case "random" -> sendMessage(user, "random command"); //TODO: change text
+            default -> findPhotos(text, user);
         }
     }
 
-    public List<String> findFilesByTags(String tags) throws SQLException {
-        List<String> files = new ArrayList<>();
+    public void findPhotos(String tags, User user) throws SQLException {
+        List<String> fileIds = findFileIdsByTags(tags);
+        for (String fileId : fileIds) { //TODO: send photo
+            sendMessage(user, fileId);
+        }
+    }
+
+    public List<String> findFileIdsByTags(String tags) throws SQLException {
+        List<String> fileIds = new ArrayList<>();
         PreparedStatement statement = connection.prepareStatement("SELECT * FROM FT_SEARCH(?, 0, 0)");
         statement.setString(1, tags);
         statement.execute();
         ResultSet resultSet = statement.getResultSet();
         while (resultSet.next()) {
-            files.add(queryFile(resultSet.getString(1)));
+            fileIds.add(queryFileId(resultSet.getString(1)));
         }
-        return files;
+        return fileIds;
     }
 
-    public String queryFile(String query) throws SQLException {
+    public String queryFileId(String query) throws SQLException {
         Statement statement = connection.createStatement();
         statement.execute("SELECT * FROM " + query);
         ResultSet resultSet = statement.getResultSet();
