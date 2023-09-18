@@ -9,7 +9,7 @@ import com.pengrad.telegrambot.model.Update;
 import com.pengrad.telegrambot.model.User;
 import com.pengrad.telegrambot.request.SendMessage;
 import com.pengrad.telegrambot.response.SendResponse;
-import org.h2.fulltext.FullText;
+import org.h2.fulltext.FullTextLucene;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,10 +36,10 @@ public class BStorageBot {
         connection = DriverManager.getConnection("jdbc:h2:./bstorage");
         connection.createStatement().execute(getResourceFileAsString("bstorage.sql"));
         DatabaseMetaData metaData = connection.getMetaData();
-        ResultSet resultSet = metaData.getTables(null, "FT", null, null);
+        ResultSet resultSet = metaData.getTables(null, "FTL", null, null);
         if (!resultSet.next()) {
-            FullText.init(connection);
-            FullText.createIndex(connection, "PUBLIC", "FILES", null);
+            FullTextLucene.init(connection);
+            FullTextLucene.createIndex(connection, "PUBLIC", "FILES", null);
         }
     }
 
@@ -109,7 +109,7 @@ public class BStorageBot {
 
     public List<String> findFileIdsByTags(String tags) throws SQLException {
         List<String> fileIds = new ArrayList<>();
-        ResultSet resultSet = FullText.search(connection, tags, 0, 0);
+        ResultSet resultSet = FullTextLucene.search(connection, tags, 0, 0);
         while (resultSet.next()) {
             String queryText = resultSet.getString(1);
             fileIds.add(queryFileId(queryText));
