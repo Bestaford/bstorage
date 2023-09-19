@@ -130,7 +130,10 @@ public class BStorageBot {
     public List<String> findFileIdsByTags(String tags) {
         List<String> fileIds = new ArrayList<>();
         try {
-            ResultSet resultSet = FullTextLucene.search(connection, tags, 20, 0);
+            PreparedStatement statement = connection.prepareStatement("SELECT * FROM FTL_SEARCH(?, 50, 0) ORDER BY SCORE DESC");
+            statement.setString(1, tags);
+            statement.execute();
+            ResultSet resultSet = statement.getResultSet();
             while (resultSet.next()) {
                 String queryText = resultSet.getString(1);
                 fileIds.add(queryFileId(queryText));
