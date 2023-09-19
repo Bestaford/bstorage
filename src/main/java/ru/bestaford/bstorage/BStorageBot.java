@@ -3,10 +3,7 @@ package ru.bestaford.bstorage;
 import com.pengrad.telegrambot.Callback;
 import com.pengrad.telegrambot.TelegramBot;
 import com.pengrad.telegrambot.UpdatesListener;
-import com.pengrad.telegrambot.model.Message;
-import com.pengrad.telegrambot.model.PhotoSize;
-import com.pengrad.telegrambot.model.Update;
-import com.pengrad.telegrambot.model.User;
+import com.pengrad.telegrambot.model.*;
 import com.pengrad.telegrambot.request.SendMessage;
 import com.pengrad.telegrambot.response.SendResponse;
 import org.h2.fulltext.FullTextLucene;
@@ -67,15 +64,20 @@ public class BStorageBot {
     }
 
     public void processMessage(Message message, User user) throws SQLException {
+        String text = message.text();
+        if (text != null && !text.isBlank()) {
+            processText(text, user);
+            return;
+        }
         PhotoSize[] photoSizes = message.photo();
-        if (photoSizes == null) {
-            String text = message.text();
-            if (text != null && !text.isBlank()) {
-                processText(text, user);
-                return;
-            }
-        } else {
-            processPhoto(message, user, photoSizes);
+        if (photoSizes != null) {
+            PhotoSize photo = photoSizes[photoSizes.length - 1];
+            saveFile(message, user, photo.fileUniqueId(), photo.fileId());
+            return;
+        }
+        Video video = message.video();
+        if (video != null) {
+            saveFile(message, user, video.fileUniqueId(), video.fileId());
             return;
         }
         sendMessage(user, "help"); //TODO: change text
@@ -92,16 +94,16 @@ public class BStorageBot {
             case "last" -> sendMessage(user, "last command"); //TODO: change text
             case "latest" -> sendMessage(user, "latest command"); //TODO: change text
             case "random" -> sendMessage(user, "random command"); //TODO: change text
-            default -> findPhotos(text, user);
+            default -> findFiles(text, user);
         }
     }
 
-    public void findPhotos(String tags, User user) {
+    public void findFiles(String tags, User user) {
         List<String> fileIds = findFileIdsByTags(tags);
         if (fileIds.isEmpty()) {
             sendMessage(user, "nothing found"); //TODO: change text
         } else {
-            for (String fileId : fileIds) { //TODO: send photo
+            for (String fileId : fileIds) { //TODO: send media file
                 sendMessage(user, fileId);
             }
         }
@@ -126,38 +128,27 @@ public class BStorageBot {
         statement.execute("SELECT * FROM " + queryText);
         ResultSet resultSet = statement.getResultSet();
         resultSet.next();
-        return resultSet.getString(2);
+        return resultSet.getString(4);
     }
 
-    public void processPhoto(Message message, User user, PhotoSize[] photoSizes) throws SQLException {
-        PhotoSize photo = photoSizes[photoSizes.length - 1];
+    public void saveFile(Message message, User user, String fileUniqueId, String fileId) throws SQLException {
         String mediaGroupId = message.mediaGroupId();
         String caption = message.caption();
-        if (caption == null) {
-            if (mediaGroupId != null) {
+        if (mediaGroupId != null) {
+            if (caption == null) {
                 caption = mediaGroupIdToCaptionMap.get(mediaGroupId);
-                if (caption != null) {
-                    savePhoto(user, photo, caption);
-                    return;
-                }
-            }
-        } else {
-            if (mediaGroupId != null) {
+            } else {
                 mediaGroupIdToCaptionMap.put(mediaGroupId, caption);
             }
-            savePhoto(user, photo, caption);
-            return;
         }
-        savePhoto(user, photo, null);
-    }
-
-    public void savePhoto(User user, PhotoSize photo, String caption) throws SQLException {
-        PreparedStatement statement = connection.prepareStatement("MERGE INTO FILES VALUES (?, ?, ?, ?, ?)");
-        statement.setString(1, user.id() + photo.fileUniqueId());
-        statement.setString(2, photo.fileId());
-        statement.setString(3, caption);
-        statement.setLong(4, user.id());
-        statement.setTimestamp(5, Timestamp.valueOf(LocalDateTime.now()));
+        Long userId = user.id();
+        PreparedStatement statement = connection.prepareStatement("MERGE INTO FILES VALUES (?, ?, ?, ?, ?, ?)");
+        statement.setString(1, userId + fileUniqueId);
+        statement.setLong(2, userId);
+        statement.setString(3, fileUniqueId);
+        statement.setString(4, fileId);
+        statement.setString(5, caption);
+        statement.setTimestamp(6, Timestamp.valueOf(LocalDateTime.now()));
         logger.debug(statement.toString());
         statement.execute();
         if (statement.getUpdateCount() == 1) {
