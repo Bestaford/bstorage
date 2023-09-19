@@ -4,6 +4,8 @@ import com.pengrad.telegrambot.Callback;
 import com.pengrad.telegrambot.TelegramBot;
 import com.pengrad.telegrambot.UpdatesListener;
 import com.pengrad.telegrambot.model.*;
+import com.pengrad.telegrambot.model.request.InlineQueryResultPhoto;
+import com.pengrad.telegrambot.request.AnswerInlineQuery;
 import com.pengrad.telegrambot.request.SendMessage;
 import com.pengrad.telegrambot.response.SendResponse;
 import org.h2.fulltext.FullTextLucene;
@@ -44,18 +46,10 @@ public class BStorageBot {
         bot.setUpdatesListener(updates -> {
             for (Update update : updates) {
                 logger.debug(update.toString());
-                Message message = update.message();
-                if (message == null) {
-                    continue;
-                }
-                User user = message.from();
-                if (user == null) {
-                    continue;
-                }
                 try {
-                    processMessage(message, user);
+                    processUpdate(update);
                 } catch (SQLException e) {
-                    logger.error("Failed to process message", e);
+                    logger.error("Failed to process update", e);
                 }
             }
             return UpdatesListener.CONFIRMED_UPDATES_ALL;
@@ -63,7 +57,20 @@ public class BStorageBot {
         logger.info("Bot started");
     }
 
-    public void processMessage(Message message, User user) throws SQLException {
+    public void processUpdate(Update update) throws SQLException {
+        InlineQuery inlineQuery = update.inlineQuery();
+        if (inlineQuery != null) {
+            processInlineQuery(inlineQuery);
+            return;
+        }
+        Message message = update.message();
+        if (message == null) {
+            return;
+        }
+        User user = message.from();
+        if (user == null) {
+            return;
+        }
         String text = message.text();
         if (text != null && !text.isBlank()) {
             processText(text, user);
@@ -81,6 +88,16 @@ public class BStorageBot {
             return;
         }
         sendMessage(user, "help"); //TODO: change text
+    }
+
+    public void processInlineQuery(InlineQuery inlineQuery) {
+        String query = inlineQuery.query();
+        if (query == null || query.isBlank()) {
+            return;
+        }
+        for (String fileId : findFileIdsByTags(query)) {
+            bot.execute(new AnswerInlineQuery(inlineQuery.id(), new InlineQueryResultPhoto("id", fileId, fileId)));
+        }
     }
 
     public void processText(String text, User user) {
