@@ -4,7 +4,8 @@ import com.pengrad.telegrambot.Callback;
 import com.pengrad.telegrambot.TelegramBot;
 import com.pengrad.telegrambot.UpdatesListener;
 import com.pengrad.telegrambot.model.*;
-import com.pengrad.telegrambot.model.request.InlineQueryResultPhoto;
+import com.pengrad.telegrambot.model.request.InlineQueryResult;
+import com.pengrad.telegrambot.model.request.InlineQueryResultCachedPhoto;
 import com.pengrad.telegrambot.request.AnswerInlineQuery;
 import com.pengrad.telegrambot.request.SendMessage;
 import com.pengrad.telegrambot.response.SendResponse;
@@ -91,13 +92,13 @@ public class BStorageBot {
     }
 
     public void processInlineQuery(InlineQuery inlineQuery) {
-        String query = inlineQuery.query();
-        if (query == null || query.isBlank()) {
-            return;
+        List<InlineQueryResult<?>> resultsList = new ArrayList<>();
+        List<String> fileIds = findFileIdsByTags(inlineQuery.query());
+        for (String fileId : fileIds) {
+            resultsList.add(new InlineQueryResultCachedPhoto(UUID.randomUUID().toString(), fileId));
         }
-        for (String fileId : findFileIdsByTags(query)) {
-            bot.execute(new AnswerInlineQuery(inlineQuery.id(), new InlineQueryResultPhoto("id", fileId, fileId)));
-        }
+        InlineQueryResult<?>[] resultsArray = resultsList.toArray(new InlineQueryResult<?>[0]);
+        bot.execute(new AnswerInlineQuery(inlineQuery.id(), resultsArray).isPersonal(true).cacheTime(0));
     }
 
     public void processText(String text, User user) {
