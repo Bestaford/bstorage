@@ -13,14 +13,10 @@ import org.h2.fulltext.FullTextLucene;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.sql.*;
 import java.time.LocalDateTime;
 import java.util.*;
-import java.util.stream.Collectors;
 
 public class BStorageBot {
 
@@ -29,17 +25,26 @@ public class BStorageBot {
     public final Map<String, String> mediaGroupIdToCaptionMap;
     public final Connection connection;
 
-    public BStorageBot() throws SQLException, IOException {
+    public BStorageBot() throws SQLException {
         logger = LoggerFactory.getLogger(getClass());
         bot = new TelegramBot(getenv("BSTORAGE_BOT_TOKEN"));
         mediaGroupIdToCaptionMap = new HashMap<>();
         connection = DriverManager.getConnection("jdbc:h2:./bstorage");
-        connection.createStatement().execute(getResourceFileAsString("bstorage.sql"));
+        connection.createStatement().execute("""
+                CREATE TABLE IF NOT EXISTS FILES (
+                    ID VARCHAR PRIMARY KEY,
+                    USER_ID BIGINT NOT NULL,
+                    FILE_UNIQUE_ID VARCHAR NOT NULL,
+                    FILE_ID VARCHAR NOT NULL,
+                    TAGS VARCHAR,
+                    DATETIME TIMESTAMP NOT NULL
+                )
+                """);
         DatabaseMetaData metaData = connection.getMetaData();
         ResultSet resultSet = metaData.getTables(null, "FTL", null, null);
         if (!resultSet.next()) {
             FullTextLucene.init(connection);
-            FullTextLucene.createIndex(connection, "PUBLIC", "FILES", null);
+            FullTextLucene.createIndex(connection, "PUBLIC", "FILES", "TAGS");
         }
     }
 
@@ -200,22 +205,11 @@ public class BStorageBot {
         bot.shutdown();
     }
 
-    /* https://stackoverflow.com/a/46613809 */
-    public static String getResourceFileAsString(String fileName) throws IOException {
-        ClassLoader classLoader = ClassLoader.getSystemClassLoader();
-        try (InputStream is = classLoader.getResourceAsStream(fileName)) {
-            if (is == null) return null;
-            try (InputStreamReader isr = new InputStreamReader(is); BufferedReader reader = new BufferedReader(isr)) {
-                return reader.lines().collect(Collectors.joining(System.lineSeparator()));
-            }
-        }
-    }
-
     public static String getenv(String name) {
         return Objects.requireNonNull(System.getenv(name), "Missing environment variable " + name);
     }
 
-    public static void main(String[] args) throws SQLException, IOException {
+    public static void main(String[] args) throws SQLException {
         BStorageBot bStorageBot = new BStorageBot();
         bStorageBot.start();
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
