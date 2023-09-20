@@ -13,6 +13,7 @@ import org.h2.fulltext.FullTextLucene;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
 import java.io.IOException;
 import java.sql.*;
 import java.time.LocalDateTime;
@@ -40,9 +41,7 @@ public class BStorageBot {
                     DATETIME TIMESTAMP NOT NULL
                 )
                 """);
-        DatabaseMetaData metaData = connection.getMetaData();
-        ResultSet resultSet = metaData.getTables(null, "FTL", null, null);
-        if (!resultSet.next()) {
+        if (!new File("bstorage").isDirectory()) {
             FullTextLucene.init(connection);
             FullTextLucene.createIndex(connection, "PUBLIC", "FILES", "TAGS");
         }
