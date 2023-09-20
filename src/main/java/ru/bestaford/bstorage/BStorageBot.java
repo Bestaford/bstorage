@@ -97,7 +97,7 @@ public class BStorageBot {
 
     public void processInlineQuery(InlineQuery inlineQuery) {
         List<InlineQueryResult<?>> resultsList = new ArrayList<>();
-        List<String> fileIds = findFileIdsByTags(inlineQuery.query());
+        List<String> fileIds = findFileIdsByTags(inlineQuery.from(), inlineQuery.query());
         for (String fileId : fileIds) {
             resultsList.add(new InlineQueryResultCachedPhoto(UUID.randomUUID().toString(), fileId));
         }
@@ -116,12 +116,12 @@ public class BStorageBot {
             case "last" -> sendMessage(user, "last command"); //TODO: change text
             case "latest" -> sendMessage(user, "latest command"); //TODO: change text
             case "random" -> sendMessage(user, "random command"); //TODO: change text
-            default -> findFiles(text, user);
+            default -> findFiles(user, text);
         }
     }
 
-    public void findFiles(String tags, User user) {
-        List<String> fileIds = findFileIdsByTags(tags);
+    public void findFiles(User user, String tags) {
+        List<String> fileIds = findFileIdsByTags(user, tags);
         if (fileIds.isEmpty()) {
             sendMessage(user, "nothing found"); //TODO: change text
         } else {
@@ -131,7 +131,7 @@ public class BStorageBot {
         }
     }
 
-    public List<String> findFileIdsByTags(String tags) {
+    public List<String> findFileIdsByTags(User user, String tags) {
         List<String> fileIds = new ArrayList<>();
         try {
             PreparedStatement statement = connection.prepareStatement("SELECT * FROM FTL_SEARCH(?, 50, 0) ORDER BY SCORE DESC");
@@ -140,7 +140,10 @@ public class BStorageBot {
             ResultSet resultSet = statement.getResultSet();
             while (resultSet.next()) {
                 String queryText = resultSet.getString(1);
-                fileIds.add(queryFileId(queryText));
+                String fileId = queryFileId(user, queryText);
+                if (fileId != null) {
+                    fileIds.add(fileId);
+                }
             }
         } catch (SQLException e) {
             logger.error("Failed to parse tags", e);
@@ -148,12 +151,15 @@ public class BStorageBot {
         return fileIds;
     }
 
-    public String queryFileId(String queryText) throws SQLException {
-        Statement statement = connection.createStatement();
-        statement.execute("SELECT * FROM " + queryText);
+    public String queryFileId(User user, String queryText) throws SQLException {
+        PreparedStatement statement = connection.prepareStatement("SELECT * FROM " + queryText + " AND \"USER_ID\"=?");
+        statement.setLong(1, user.id());
+        statement.execute();
         ResultSet resultSet = statement.getResultSet();
-        resultSet.next();
-        return resultSet.getString(4);
+        if (resultSet.next()) {
+            return resultSet.getString(4);
+        }
+        return null;
     }
 
     public void saveFile(Message message, User user, String fileUniqueId, String fileId) throws SQLException {
