@@ -99,7 +99,11 @@ public class BStorageBot {
         List<InlineQueryResult<?>> resultsList = new ArrayList<>();
         List<String> fileIds = findFileIdsByTags(inlineQuery.from(), inlineQuery.query());
         for (String fileId : fileIds) {
-            resultsList.add(new InlineQueryResultCachedPhoto(UUID.randomUUID().toString(), fileId));
+            if (resultsList.size() < 50) {
+                resultsList.add(new InlineQueryResultCachedPhoto(UUID.randomUUID().toString(), fileId));
+            } else {
+                break;
+            }
         }
         InlineQueryResult<?>[] resultsArray = resultsList.toArray(new InlineQueryResult<?>[0]);
         bot.execute(new AnswerInlineQuery(inlineQuery.id(), resultsArray).isPersonal(true).cacheTime(0));
@@ -134,7 +138,7 @@ public class BStorageBot {
     public List<String> findFileIdsByTags(User user, String tags) {
         List<String> fileIds = new ArrayList<>();
         try {
-            PreparedStatement statement = connection.prepareStatement("SELECT * FROM FTL_SEARCH(?, 50, 0) ORDER BY SCORE DESC");
+            PreparedStatement statement = connection.prepareStatement("SELECT * FROM FTL_SEARCH(?, 0, 0) ORDER BY SCORE DESC");
             statement.setString(1, tags);
             statement.execute();
             ResultSet resultSet = statement.getResultSet();
