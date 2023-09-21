@@ -118,18 +118,27 @@ public class BStorageBot {
     public List<String> findFileIdsByTags(User user, String tags) {
         List<String> fileIds = new ArrayList<>();
         try {
-            PreparedStatement statement = connection.prepareStatement("SELECT * FROM FTL_SEARCH(?, 0, 0) ORDER BY SCORE DESC");
-            statement.setString(1, tags);
-            ResultSet resultSet = executeStatement(statement);
-            while (resultSet.next()) {
-                String queryText = resultSet.getString(1);
-                String fileId = queryFileId(user, queryText);
-                if (fileId != null) {
-                    fileIds.add(fileId);
+            if (tags == null || tags.isBlank()) {
+                PreparedStatement statement = connection.prepareStatement("SELECT * FROM FILES WHERE USER_ID=? ORDER BY DATETIME DESC FETCH FIRST 50 ROWS ONLY");
+                statement.setLong(1, user.id());
+                ResultSet resultSet = executeStatement(statement);
+                while (resultSet.next()) {
+                    fileIds.add(resultSet.getString(4));
+                }
+            } else {
+                PreparedStatement statement = connection.prepareStatement("SELECT * FROM FTL_SEARCH(?, 0, 0) ORDER BY SCORE DESC");
+                statement.setString(1, tags);
+                ResultSet resultSet = executeStatement(statement);
+                while (resultSet.next()) {
+                    String queryText = resultSet.getString(1);
+                    String fileId = queryFileId(user, queryText);
+                    if (fileId != null) {
+                        fileIds.add(fileId);
+                    }
                 }
             }
         } catch (SQLException e) {
-            logger.error("Failed to parse tags", e);
+            logger.error("Failed find files", e);
         }
         return fileIds;
     }
