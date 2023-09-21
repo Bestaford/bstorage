@@ -24,14 +24,16 @@ public class BStorageBot {
 
     public final Logger logger;
     public final TelegramBot bot;
-    public final Map<String, String> mediaGroupIdToCaptionMap;
+    public final Map<String, String> mediaGroupIdToTagsMap;
     public final Map<Long, String> userIdToMessageTextMap;
     public final Connection connection;
+
+    public final String MESSAGE_HELP = "help";
 
     public BStorageBot() throws SQLException {
         logger = LoggerFactory.getLogger(getClass());
         bot = new TelegramBot(getenv("BSTORAGE_BOT_TOKEN"));
-        mediaGroupIdToCaptionMap = new HashMap<>();
+        mediaGroupIdToTagsMap = new HashMap<>();
         userIdToMessageTextMap = new HashMap<>();
         connection = DriverManager.getConnection("jdbc:h2:./bstorage");
         PreparedStatement statement = connection.prepareStatement("""
@@ -96,7 +98,7 @@ public class BStorageBot {
             saveFile(message, user, video.fileUniqueId(), video.fileId());
             return;
         }
-        sendMessage(user, "help"); //TODO: change text
+        sendMessage(user, MESSAGE_HELP);
     }
 
     public void processInlineQuery(InlineQuery inlineQuery) {
@@ -144,28 +146,27 @@ public class BStorageBot {
 
     public void saveFile(Message message, User user, String fileUniqueId, String fileId) throws SQLException {
         String mediaGroupId = message.mediaGroupId();
-        String caption = message.caption();
+        String tags = message.caption();
+        Long userId = user.id();
         if (mediaGroupId != null) {
-            if (caption == null) {
-                caption = mediaGroupIdToCaptionMap.get(mediaGroupId);
+            if (tags == null) {
+                tags = mediaGroupIdToTagsMap.get(mediaGroupId);
             } else {
-                mediaGroupIdToCaptionMap.put(mediaGroupId, caption);
+                mediaGroupIdToTagsMap.put(mediaGroupId, tags);
             }
         }
-        Long userId = user.id();
+        if (tags == null) {
+            tags = userIdToMessageTextMap.get(userId);
+        }
         PreparedStatement statement = connection.prepareStatement("MERGE INTO FILES VALUES (?, ?, ?, ?, ?, ?)");
         statement.setString(1, userId + fileUniqueId);
         statement.setLong(2, userId);
         statement.setString(3, fileUniqueId);
         statement.setString(4, fileId);
-        statement.setString(5, caption);
+        statement.setString(5, tags);
         statement.setTimestamp(6, Timestamp.valueOf(LocalDateTime.now()));
         executeStatement(statement);
-        if (statement.getUpdateCount() == 1) {
-            sendMessage(user, "saved"); //TODO: change text
-        } else {
-            sendMessage(user, "save error"); //TODO: change text
-        }
+        sendMessage(user, String.format("File saved with tags \"%s\".", tags));
     }
 
     public ResultSet executeStatement(PreparedStatement statement) throws SQLException {
