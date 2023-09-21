@@ -7,8 +7,9 @@ import com.pengrad.telegrambot.model.*;
 import com.pengrad.telegrambot.model.request.InlineQueryResult;
 import com.pengrad.telegrambot.model.request.InlineQueryResultCachedPhoto;
 import com.pengrad.telegrambot.request.AnswerInlineQuery;
+import com.pengrad.telegrambot.request.BaseRequest;
 import com.pengrad.telegrambot.request.SendMessage;
-import com.pengrad.telegrambot.response.SendResponse;
+import com.pengrad.telegrambot.response.BaseResponse;
 import org.h2.fulltext.FullTextLucene;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,14 +25,16 @@ public class BStorageBot {
     public final Logger logger;
     public final TelegramBot bot;
     public final Map<String, String> mediaGroupIdToCaptionMap;
+    public final Map<Long, String> userIdToMessageTextMap;
     public final Connection connection;
 
     public BStorageBot() throws SQLException {
         logger = LoggerFactory.getLogger(getClass());
         bot = new TelegramBot(getenv("BSTORAGE_BOT_TOKEN"));
         mediaGroupIdToCaptionMap = new HashMap<>();
+        userIdToMessageTextMap = new HashMap<>();
         connection = DriverManager.getConnection("jdbc:h2:./bstorage");
-        connection.createStatement().execute("""
+        PreparedStatement statement = connection.prepareStatement("""
                 CREATE TABLE IF NOT EXISTS FILES (
                     ID VARCHAR PRIMARY KEY,
                     USER_ID BIGINT NOT NULL,
@@ -41,6 +44,7 @@ public class BStorageBot {
                     DATETIME TIMESTAMP NOT NULL
                 )
                 """);
+        executeStatement(statement);
         if (!new File("bstorage").isDirectory()) {
             FullTextLucene.init(connection);
             FullTextLucene.createIndex(connection, "PUBLIC", "FILES", "TAGS");
@@ -78,7 +82,7 @@ public class BStorageBot {
         }
         String text = message.text();
         if (text != null && !text.isBlank()) {
-            processText(text, user);
+            userIdToMessageTextMap.put(user.id(), text);
             return;
         }
         PhotoSize[] photoSizes = message.photo();
@@ -106,33 +110,7 @@ public class BStorageBot {
             }
         }
         InlineQueryResult<?>[] resultsArray = resultsList.toArray(new InlineQueryResult<?>[0]);
-        bot.execute(new AnswerInlineQuery(inlineQuery.id(), resultsArray).isPersonal(true).cacheTime(0));
-    }
-
-    public void processText(String text, User user) {
-        text = text.strip().toLowerCase();
-        if (text.startsWith("/")) {
-            text = text.substring(1);
-        }
-        switch (text) {
-            case "start" -> sendMessage(user, "start command"); //TODO: change text
-            case "help" -> sendMessage(user, "help command"); //TODO: change text
-            case "last" -> sendMessage(user, "last command"); //TODO: change text
-            case "latest" -> sendMessage(user, "latest command"); //TODO: change text
-            case "random" -> sendMessage(user, "random command"); //TODO: change text
-            default -> findFiles(user, text);
-        }
-    }
-
-    public void findFiles(User user, String tags) {
-        List<String> fileIds = findFileIdsByTags(user, tags);
-        if (fileIds.isEmpty()) {
-            sendMessage(user, "nothing found"); //TODO: change text
-        } else {
-            for (String fileId : fileIds) { //TODO: send media file
-                sendMessage(user, fileId);
-            }
-        }
+        executeBotRequest(new AnswerInlineQuery(inlineQuery.id(), resultsArray).isPersonal(true).cacheTime(0));
     }
 
     public List<String> findFileIdsByTags(User user, String tags) {
@@ -140,8 +118,7 @@ public class BStorageBot {
         try {
             PreparedStatement statement = connection.prepareStatement("SELECT * FROM FTL_SEARCH(?, 0, 0) ORDER BY SCORE DESC");
             statement.setString(1, tags);
-            statement.execute();
-            ResultSet resultSet = statement.getResultSet();
+            ResultSet resultSet = executeStatement(statement);
             while (resultSet.next()) {
                 String queryText = resultSet.getString(1);
                 String fileId = queryFileId(user, queryText);
@@ -158,8 +135,7 @@ public class BStorageBot {
     public String queryFileId(User user, String queryText) throws SQLException {
         PreparedStatement statement = connection.prepareStatement("SELECT * FROM " + queryText + " AND \"USER_ID\"=?");
         statement.setLong(1, user.id());
-        statement.execute();
-        ResultSet resultSet = statement.getResultSet();
+        ResultSet resultSet = executeStatement(statement);
         if (resultSet.next()) {
             return resultSet.getString(4);
         }
@@ -184,8 +160,7 @@ public class BStorageBot {
         statement.setString(4, fileId);
         statement.setString(5, caption);
         statement.setTimestamp(6, Timestamp.valueOf(LocalDateTime.now()));
-        logger.debug(statement.toString());
-        statement.execute();
+        executeStatement(statement);
         if (statement.getUpdateCount() == 1) {
             sendMessage(user, "saved"); //TODO: change text
         } else {
@@ -193,16 +168,27 @@ public class BStorageBot {
         }
     }
 
-    public void sendMessage(User user, String text) {
-        bot.execute(new SendMessage(user.id(), text), new Callback<SendMessage, SendResponse>() {
-            @Override
-            public void onResponse(SendMessage request, SendResponse response) {
+    public ResultSet executeStatement(PreparedStatement statement) throws SQLException {
+        logger.debug(statement.toString());
+        statement.execute();
+        return statement.getResultSet();
+    }
 
+    public void sendMessage(User user, String text) {
+        executeBotRequest(new SendMessage(user.id(), text));
+    }
+
+    public <T extends BaseRequest<T, R>, R extends BaseResponse> void executeBotRequest(T request) {
+        logger.debug(request.toString());
+        bot.execute(request, new Callback<T, R>() {
+            @Override
+            public void onResponse(T request, R response) {
+                logger.debug(response.toString());
             }
 
             @Override
-            public void onFailure(SendMessage request, IOException exception) {
-                logger.error("Failed to send message", exception);
+            public void onFailure(T request, IOException e) {
+                logger.error("Failed to execute request", e);
             }
         });
     }
