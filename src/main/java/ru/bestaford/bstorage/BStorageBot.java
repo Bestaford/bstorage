@@ -118,39 +118,46 @@ public class BStorageBot {
     public List<String> findFileIdsByTags(User user, String tags) {
         List<String> fileIds = new ArrayList<>();
         try {
+            PreparedStatement statement;
             if (tags == null || tags.isBlank()) {
-                PreparedStatement statement = connection.prepareStatement("SELECT * FROM FILES WHERE USER_ID=? ORDER BY DATETIME DESC FETCH FIRST 50 ROWS ONLY");
+                statement = connection.prepareStatement("""
+                        SELECT
+                            *
+                        FROM
+                            FILES
+                        WHERE
+                            USER_ID = ?
+                        ORDER BY
+                            DATETIME DESC
+                        FETCH FIRST 50 ROWS ONLY
+                        """);
                 statement.setLong(1, user.id());
-                ResultSet resultSet = executeStatement(statement);
-                while (resultSet.next()) {
-                    fileIds.add(resultSet.getString(4));
-                }
             } else {
-                PreparedStatement statement = connection.prepareStatement("SELECT * FROM FTL_SEARCH(?, 0, 0) ORDER BY SCORE DESC");
+                statement = connection.prepareStatement("""
+                        SELECT
+                            F.*
+                        FROM
+                            FTL_SEARCH_DATA(?, 0, 0) FTL,
+                            FILES F
+                        WHERE
+                            FTL."TABLE" = 'FILES'
+                            AND F.ID = FTL.KEYS[1]
+                            AND F.USER_ID = ?
+                        ORDER BY
+                            FTL.SCORE DESC
+                        FETCH FIRST 50 ROWS ONLY
+                        """);
                 statement.setString(1, tags);
-                ResultSet resultSet = executeStatement(statement);
-                while (resultSet.next()) {
-                    String queryText = resultSet.getString(1);
-                    String fileId = queryFileId(user, queryText);
-                    if (fileId != null) {
-                        fileIds.add(fileId);
-                    }
-                }
+                statement.setLong(2, user.id());
+            }
+            ResultSet resultSet = executeStatement(statement);
+            while (resultSet.next()) {
+                fileIds.add(resultSet.getString(4));
             }
         } catch (SQLException e) {
             logger.error("Failed to find files", e);
         }
         return fileIds;
-    }
-
-    public String queryFileId(User user, String queryText) throws SQLException {
-        PreparedStatement statement = connection.prepareStatement("SELECT * FROM " + queryText + " AND \"USER_ID\"=?");
-        statement.setLong(1, user.id());
-        ResultSet resultSet = executeStatement(statement);
-        if (resultSet.next()) {
-            return resultSet.getString(4);
-        }
-        return null;
     }
 
     public void saveFile(Message message, User user, String fileUniqueId, String fileId) throws SQLException {
