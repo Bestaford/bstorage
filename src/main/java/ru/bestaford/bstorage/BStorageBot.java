@@ -42,6 +42,7 @@ public class BStorageBot {
                     USER_ID BIGINT NOT NULL,
                     FILE_UNIQUE_ID VARCHAR NOT NULL,
                     FILE_ID VARCHAR NOT NULL,
+                    FILE_TYPE VARCHAR NOT NULL,
                     TAGS VARCHAR,
                     DATETIME TIMESTAMP NOT NULL
                 )
@@ -90,12 +91,12 @@ public class BStorageBot {
         PhotoSize[] photoSizes = message.photo();
         if (photoSizes != null) {
             PhotoSize photo = photoSizes[photoSizes.length - 1];
-            saveFile(message, user, photo.fileUniqueId(), photo.fileId());
+            saveFile(message, user, photo.fileUniqueId(), photo.fileId(), FileType.PHOTO);
             return;
         }
         Video video = message.video();
         if (video != null) {
-            saveFile(message, user, video.fileUniqueId(), video.fileId());
+            saveFile(message, user, video.fileUniqueId(), video.fileId(), FileType.VIDEO);
             return;
         }
         sendMessage(user, MESSAGE_HELP);
@@ -160,7 +161,7 @@ public class BStorageBot {
         return fileIds;
     }
 
-    public void saveFile(Message message, User user, String fileUniqueId, String fileId) throws SQLException {
+    public void saveFile(Message message, User user, String fileUniqueId, String fileId, FileType fileType) throws SQLException {
         String mediaGroupId = message.mediaGroupId();
         String tags = message.caption();
         Long userId = user.id();
@@ -177,13 +178,14 @@ public class BStorageBot {
         if (tags != null) {
             tags = tags.trim().replaceAll("\\s+", " ").toLowerCase();
         }
-        PreparedStatement statement = connection.prepareStatement("MERGE INTO FILES VALUES (?, ?, ?, ?, ?, ?)");
+        PreparedStatement statement = connection.prepareStatement("MERGE INTO FILES VALUES (?, ?, ?, ?, ?, ?, ?)");
         statement.setString(1, userId + fileUniqueId);
         statement.setLong(2, userId);
         statement.setString(3, fileUniqueId);
         statement.setString(4, fileId);
-        statement.setString(5, tags);
-        statement.setTimestamp(6, Timestamp.valueOf(LocalDateTime.now()));
+        statement.setString(5, fileType.toString());
+        statement.setString(6, tags);
+        statement.setTimestamp(7, Timestamp.valueOf(LocalDateTime.now()));
         executeStatement(statement);
         if (tags == null) {
             sendMessage(user, "File saved without tags.");
