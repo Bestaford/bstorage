@@ -7,10 +7,13 @@ import com.pengrad.telegrambot.model.*;
 import com.pengrad.telegrambot.model.request.InlineQueryResult;
 import com.pengrad.telegrambot.model.request.InlineQueryResultCachedPhoto;
 import com.pengrad.telegrambot.model.request.InlineQueryResultCachedVideo;
+import com.pengrad.telegrambot.model.request.ParseMode;
 import com.pengrad.telegrambot.request.AnswerInlineQuery;
 import com.pengrad.telegrambot.request.BaseRequest;
+import com.pengrad.telegrambot.request.GetMe;
 import com.pengrad.telegrambot.request.SendMessage;
 import com.pengrad.telegrambot.response.BaseResponse;
+import com.pengrad.telegrambot.response.GetMeResponse;
 import org.h2.fulltext.FullTextLucene;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,8 +31,7 @@ public class BStorageBot {
     public final Map<String, String> mediaGroupIdToCaptionMap;
     public final Map<Long, String> userIdToMessageTextMap;
     public final Connection connection;
-
-    public final String MESSAGE_HELP = "help";
+    public final String helpMessage;
 
     public BStorageBot() throws SQLException {
         logger = LoggerFactory.getLogger(getClass());
@@ -53,6 +55,16 @@ public class BStorageBot {
             FullTextLucene.init(connection);
             FullTextLucene.createIndex(connection, "PUBLIC", "FILES", "TAGS");
         }
+        GetMeResponse response = executeBotRequest(new GetMe());
+        helpMessage = String.format("""
+                I can help you store and search your media files such as photos and videos. You can save the file in two ways:
+                                
+                <b>1.</b> Send me a text message followed by a photo or video - the file will be saved with a message text as tags that you can later use to search for those files. This can be useful when you forward me a message from a chat or channel.
+                                
+                <b>2.</b> Send me a photo or video with a caption - the file will be saved with the caption as tags, which you can later use to search for those files. If both a caption and a message are present, the message will take precedence.
+                                
+                To search for saved files, type my username @%s in any chat. Without prompting you will see the last saved files, otherwise the bot will search for files by typed text.
+                """, response.user().username());
     }
 
     public void start() {
@@ -86,7 +98,15 @@ public class BStorageBot {
         }
         String text = message.text();
         if (text != null && !text.isBlank()) {
-            userIdToMessageTextMap.put(user.id(), text);
+            text = text.trim().toLowerCase();
+            if (text.startsWith("/")) {
+                switch (text.substring(1)) {
+                    case "start", "help" -> sendMessage(user, helpMessage);
+                    default -> sendMessage(user, "Unrecognized command. See /help");
+                }
+            } else {
+                userIdToMessageTextMap.put(user.id(), text);
+            }
             return;
         }
         PhotoSize[] photoSizes = message.photo();
@@ -100,7 +120,7 @@ public class BStorageBot {
             saveFile(message, user, video.fileUniqueId(), video.fileId(), TelegramFile.Type.VIDEO);
             return;
         }
-        sendMessage(user, MESSAGE_HELP);
+        sendMessage(user, helpMessage);
     }
 
     public void processInlineQuery(InlineQuery inlineQuery) {
@@ -115,7 +135,7 @@ public class BStorageBot {
             }
         }
         InlineQueryResult<?>[] resultsArray = resultsList.toArray(new InlineQueryResult<?>[0]);
-        executeBotRequest(new AnswerInlineQuery(inlineQuery.id(), resultsArray).isPersonal(true).cacheTime(0));
+        executeAsyncBotRequest(new AnswerInlineQuery(inlineQuery.id(), resultsArray).isPersonal(true).cacheTime(0));
     }
 
     public List<TelegramFile> findFilesByTags(User user, String tags) {
@@ -206,10 +226,14 @@ public class BStorageBot {
     }
 
     public void sendMessage(User user, String text) {
-        executeBotRequest(new SendMessage(user.id(), text));
+        executeAsyncBotRequest(new SendMessage(user.id(), text).parseMode(ParseMode.HTML));
     }
 
-    public <T extends BaseRequest<T, R>, R extends BaseResponse> void executeBotRequest(T request) {
+    public <T extends BaseRequest<T, R>, R extends BaseResponse> R executeBotRequest(BaseRequest<T, R> request) {
+        return bot.execute(request);
+    }
+
+    public <T extends BaseRequest<T, R>, R extends BaseResponse> void executeAsyncBotRequest(T request) {
         logger.debug(request.toString());
         bot.execute(request, new Callback<T, R>() {
             @Override
