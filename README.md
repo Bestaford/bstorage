@@ -1,3 +1,3 @@
-# bstorage
+# bStorage
 
-(WIP) Telegram bot for storing and searching photos by tags
+bStorage is a Telegram bot for storing and searching media files such as photos and videos.
