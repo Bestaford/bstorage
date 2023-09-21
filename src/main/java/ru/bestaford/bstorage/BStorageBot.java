@@ -24,7 +24,7 @@ public class BStorageBot {
 
     public final Logger logger;
     public final TelegramBot bot;
-    public final Map<String, String> mediaGroupIdToTagsMap;
+    public final Map<String, String> mediaGroupIdToCaptionMap;
     public final Map<Long, String> userIdToMessageTextMap;
     public final Connection connection;
 
@@ -33,7 +33,7 @@ public class BStorageBot {
     public BStorageBot() throws SQLException {
         logger = LoggerFactory.getLogger(getClass());
         bot = new TelegramBot(getenv("BSTORAGE_BOT_TOKEN"));
-        mediaGroupIdToTagsMap = new HashMap<>();
+        mediaGroupIdToCaptionMap = new HashMap<>();
         userIdToMessageTextMap = new HashMap<>();
         connection = DriverManager.getConnection("jdbc:h2:./bstorage");
         PreparedStatement statement = connection.prepareStatement("""
@@ -162,18 +162,19 @@ public class BStorageBot {
     }
 
     public void saveFile(Message message, User user, String fileUniqueId, String fileId, FileType fileType) throws SQLException {
-        String mediaGroupId = message.mediaGroupId();
-        String tags = message.caption();
         Long userId = user.id();
-        if (mediaGroupId != null) {
-            if (tags == null) {
-                tags = mediaGroupIdToTagsMap.get(mediaGroupId);
-            } else {
-                mediaGroupIdToTagsMap.put(mediaGroupId, tags);
-            }
-        }
+        String tags = userIdToMessageTextMap.remove(userId);
         if (tags == null) {
-            tags = userIdToMessageTextMap.remove(userId);
+            String mediaGroupId = message.mediaGroupId();
+            String caption = message.caption();
+            if (mediaGroupId != null) {
+                if (caption == null) {
+                    caption = mediaGroupIdToCaptionMap.get(mediaGroupId);
+                } else {
+                    mediaGroupIdToCaptionMap.put(mediaGroupId, caption);
+                }
+            }
+            tags = caption;
         }
         if (tags != null) {
             tags = tags.trim().replaceAll("\\s+", " ").toLowerCase();
