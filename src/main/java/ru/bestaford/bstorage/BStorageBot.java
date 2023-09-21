@@ -138,7 +138,7 @@ public class BStorageBot {
                 }
             }
         } catch (SQLException e) {
-            logger.error("Failed find files", e);
+            logger.error("Failed to find files", e);
         }
         return fileIds;
     }
