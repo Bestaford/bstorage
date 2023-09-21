@@ -84,7 +84,7 @@ public class BStorageBot {
         }
         String text = message.text();
         if (text != null && !text.isBlank()) {
-            userIdToMessageTextMap.put(user.id(), text.trim().replaceAll("\\s+", " "));
+            userIdToMessageTextMap.put(user.id(), text);
             return;
         }
         PhotoSize[] photoSizes = message.photo();
@@ -156,7 +156,10 @@ public class BStorageBot {
             }
         }
         if (tags == null) {
-            tags = userIdToMessageTextMap.get(userId);
+            tags = userIdToMessageTextMap.remove(userId);
+        }
+        if (tags != null) {
+            tags = tags.trim().replaceAll("\\s+", " ").toLowerCase();
         }
         PreparedStatement statement = connection.prepareStatement("MERGE INTO FILES VALUES (?, ?, ?, ?, ?, ?)");
         statement.setString(1, userId + fileUniqueId);
@@ -166,7 +169,11 @@ public class BStorageBot {
         statement.setString(5, tags);
         statement.setTimestamp(6, Timestamp.valueOf(LocalDateTime.now()));
         executeStatement(statement);
-        sendMessage(user, String.format("File saved with tags \"%s\".", tags));
+        if (tags == null) {
+            sendMessage(user, "File saved without tags.");
+        } else {
+            sendMessage(user, String.format("File saved with tags \"%s\".", tags));
+        }
     }
 
     public ResultSet executeStatement(PreparedStatement statement) throws SQLException {
