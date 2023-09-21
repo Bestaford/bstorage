@@ -84,7 +84,7 @@ public class BStorageBot {
         }
         String text = message.text();
         if (text != null && !text.isBlank()) {
-            userIdToMessageTextMap.put(user.id(), text);
+            userIdToMessageTextMap.put(user.id(), text.trim().replaceAll("\\s+", " "));
             return;
         }
         PhotoSize[] photoSizes = message.photo();
