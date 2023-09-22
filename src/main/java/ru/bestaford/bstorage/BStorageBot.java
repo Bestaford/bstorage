@@ -120,16 +120,30 @@ public class BStorageBot {
         statement.setLong(1, user.id());
         ResultSet resultSet = executeStatement(statement);
         while (resultSet.next()) {
-            tagList.addAll(Arrays.asList(resultSet.getString(6).split("\\s+")));
+            String tags = resultSet.getString(6);
+            if (tags != null) {
+                tagList.addAll(Arrays.stream(tags.split("\\s+")).map(String::trim).filter(s -> !s.isBlank()).toList());
+            }
         }
-        Set<String> tagSet = new HashSet<>(tagList);
+        Set<String> tagSet = new TreeSet<>((o1, o2) -> {
+            if (o1.equals(o2)) {
+                return 0;
+            }
+            int f1 = Collections.frequency(tagList, o1);
+            int f2 = Collections.frequency(tagList, o2);
+            if (f1 > f2) {
+                return -1;
+            }
+            return 1;
+        });
+        tagSet.addAll(tagList);
         if (tagSet.isEmpty()) {
             sendMessage(user, messages.getString("top.empty"));
         } else {
             StringBuilder result = new StringBuilder(messages.getString("top.list"));
             result.append("\n");
             for (String tag : tagSet) {
-                result.append(String.format("\n%s: %d", tag, Collections.frequency(tagList, tag)));
+                result.append(String.format("\n#%s: %d", tag, Collections.frequency(tagList, tag)));
             }
             sendMessage(user, result.toString());
         }
@@ -226,7 +240,7 @@ public class BStorageBot {
         if (tags == null) {
             sendMessage(user, messages.getString("file.saved"));
         } else {
-            sendMessage(user, String.format(messages.getString("file.saved.tags"), tags));
+            sendMessage(user, String.format(messages.getString("file.saved.tags"), tags.replaceAll("\\b(\\p{L}+)\\b", "#$1")));
         }
     }
 
