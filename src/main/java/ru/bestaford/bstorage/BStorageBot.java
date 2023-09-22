@@ -28,7 +28,7 @@ public class BStorageBot {
 
     public final Logger logger;
     public final TelegramBot bot;
-    public final Map<String, String> mediaGroupIdToCaptionMap;
+    public final Map<String, String> mediaGroupIdToTagsMap;
     public final Map<Long, String> userIdToMessageTextMap;
     public final Connection connection;
     public final ResourceBundle messages;
@@ -38,7 +38,7 @@ public class BStorageBot {
         Flyway.configure().dataSource(JDBC_URL, "", "").load().migrate();
         logger = LoggerFactory.getLogger(getClass());
         bot = new TelegramBot(getenv("BSTORAGE_BOT_TOKEN"));
-        mediaGroupIdToCaptionMap = new HashMap<>();
+        mediaGroupIdToTagsMap = new HashMap<>();
         userIdToMessageTextMap = new HashMap<>();
         connection = DriverManager.getConnection(JDBC_URL);
         messages = ResourceBundle.getBundle("messages");
@@ -165,18 +165,17 @@ public class BStorageBot {
 
     public void saveFile(Message message, User user, String fileUniqueId, String fileId, TelegramFile.Type fileType) throws SQLException {
         Long userId = user.id();
+        String mediaGroupId = message.mediaGroupId();
         String tags = userIdToMessageTextMap.remove(userId);
         if (tags == null) {
-            String mediaGroupId = message.mediaGroupId();
-            String caption = message.caption();
-            if (mediaGroupId != null) {
-                if (caption == null) {
-                    caption = mediaGroupIdToCaptionMap.get(mediaGroupId);
-                } else {
-                    mediaGroupIdToCaptionMap.put(mediaGroupId, caption);
-                }
+            tags = message.caption();
+        }
+        if (mediaGroupId != null) {
+            if (tags == null) {
+                tags = mediaGroupIdToTagsMap.get(mediaGroupId);
+            } else {
+                mediaGroupIdToTagsMap.put(mediaGroupId, tags);
             }
-            tags = caption;
         }
         if (tags != null) {
             tags = tags.trim().replaceAll("\\s+", " ").toLowerCase();
