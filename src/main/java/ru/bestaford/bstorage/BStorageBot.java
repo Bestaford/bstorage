@@ -230,6 +230,7 @@ public class BStorageBot {
     }
 
     public <T extends BaseRequest<T, R>, R extends BaseResponse> R executeBotRequest(BaseRequest<T, R> request) {
+        logger.debug(request.toString());
         return bot.execute(request);
     }
 
