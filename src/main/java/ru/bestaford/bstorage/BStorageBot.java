@@ -84,6 +84,7 @@ public class BStorageBot {
             if (text.startsWith("/")) {
                 switch (text.substring(1)) {
                     case "start", "help" -> sendHelp(user);
+                    case "top" -> sendTopTags(user);
                     case "about" -> sendMessage(user, String.format(messages.getString("about"), VERSION));
                     default -> sendMessage(user, messages.getString("command.unknown"));
                 }
@@ -104,6 +105,34 @@ public class BStorageBot {
             return;
         }
         sendHelp(user);
+    }
+
+    public void sendTopTags(User user) throws SQLException {
+        List<String> tagList = new ArrayList<>();
+        PreparedStatement statement = connection.prepareStatement("""
+                SELECT
+                    *
+                FROM
+                    FILES
+                WHERE
+                    USER_ID = ?
+                """);
+        statement.setLong(1, user.id());
+        ResultSet resultSet = executeStatement(statement);
+        while (resultSet.next()) {
+            tagList.addAll(Arrays.asList(resultSet.getString(6).split("\\s+")));
+        }
+        Set<String> tagSet = new HashSet<>(tagList);
+        if (tagSet.isEmpty()) {
+            sendMessage(user, messages.getString("top.empty"));
+        } else {
+            StringBuilder result = new StringBuilder(messages.getString("top.list"));
+            result.append("\n");
+            for (String tag : tagSet) {
+                result.append(String.format("\n%s: %d", tag, Collections.frequency(tagList, tag)));
+            }
+            sendMessage(user, result.toString());
+        }
     }
 
     public void processInlineQuery(InlineQuery inlineQuery) {
