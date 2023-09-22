@@ -13,12 +13,9 @@ import com.pengrad.telegrambot.request.BaseRequest;
 import com.pengrad.telegrambot.request.GetMe;
 import com.pengrad.telegrambot.request.SendMessage;
 import com.pengrad.telegrambot.response.BaseResponse;
-import com.pengrad.telegrambot.response.GetMeResponse;
-import org.h2.fulltext.FullTextLucene;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.File;
 import java.io.IOException;
 import java.sql.*;
 import java.time.LocalDateTime;
@@ -40,25 +37,8 @@ public class BStorageBot {
         mediaGroupIdToCaptionMap = new HashMap<>();
         userIdToMessageTextMap = new HashMap<>();
         connection = DriverManager.getConnection("jdbc:h2:./bstorage");
-        PreparedStatement statement = connection.prepareStatement("""
-                CREATE TABLE IF NOT EXISTS FILES (
-                    ID VARCHAR PRIMARY KEY,
-                    USER_ID BIGINT NOT NULL,
-                    FILE_UNIQUE_ID VARCHAR NOT NULL,
-                    FILE_ID VARCHAR NOT NULL,
-                    FILE_TYPE VARCHAR NOT NULL,
-                    TAGS VARCHAR,
-                    DATETIME TIMESTAMP NOT NULL
-                )
-                """);
-        executeStatement(statement);
-        if (!new File("bstorage").isDirectory()) {
-            FullTextLucene.init(connection);
-            FullTextLucene.createIndex(connection, "PUBLIC", "FILES", "TAGS");
-        }
         messages = ResourceBundle.getBundle("messages");
-        GetMeResponse response = executeBotRequest(new GetMe());
-        me = response.user();
+        me = executeBotRequest(new GetMe()).user();
     }
 
     public void start() {
