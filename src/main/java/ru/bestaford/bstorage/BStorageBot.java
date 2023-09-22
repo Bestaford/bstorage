@@ -25,7 +25,10 @@ import java.util.*;
 public class BStorageBot {
 
     public static final String VERSION = "1.0.2";
+
     public static final String JDBC_URL = "jdbc:h2:./bstorage";
+    public static final String JDBC_USER = "";
+    public static final String JDBC_PASSWORD = "";
 
     public final Logger logger;
     public final TelegramBot bot;
@@ -36,7 +39,7 @@ public class BStorageBot {
     public final User me;
 
     public BStorageBot() throws SQLException {
-        Flyway.configure().dataSource(JDBC_URL, "", "").load().migrate();
+        Flyway.configure().dataSource(JDBC_URL, JDBC_USER, JDBC_PASSWORD).load().migrate();
         logger = LoggerFactory.getLogger(getClass());
         bot = new TelegramBot(getenv("BSTORAGE_BOT_TOKEN"));
         mediaGroupIdToTagsMap = new HashMap<>();
