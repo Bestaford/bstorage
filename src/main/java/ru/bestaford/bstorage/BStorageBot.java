@@ -229,7 +229,9 @@ public class BStorageBot {
 
     public <T extends BaseRequest<T, R>, R extends BaseResponse> R executeBotRequest(BaseRequest<T, R> request) {
         logger.debug(request.toString());
-        return bot.execute(request);
+        R response = bot.execute(request);
+        logger.debug(response.toString());
+        return response;
     }
 
     public <T extends BaseRequest<T, R>, R extends BaseResponse> void executeAsyncBotRequest(T request) {
