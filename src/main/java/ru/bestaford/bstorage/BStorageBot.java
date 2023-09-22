@@ -31,7 +31,8 @@ public class BStorageBot {
     public final Map<String, String> mediaGroupIdToCaptionMap;
     public final Map<Long, String> userIdToMessageTextMap;
     public final Connection connection;
-    public final String helpMessage;
+    public final ResourceBundle messages;
+    public final User me;
 
     public BStorageBot() throws SQLException {
         logger = LoggerFactory.getLogger(getClass());
@@ -55,16 +56,9 @@ public class BStorageBot {
             FullTextLucene.init(connection);
             FullTextLucene.createIndex(connection, "PUBLIC", "FILES", "TAGS");
         }
+        messages = ResourceBundle.getBundle("messages");
         GetMeResponse response = executeBotRequest(new GetMe());
-        helpMessage = String.format("""
-                I can help you store and search your media files such as photos and videos. You can save the file in two ways:
-                                
-                <b>1.</b> Send me a text message followed by a photo or video - the file will be saved with a message text as tags that you can later use to search for those files. This can be useful when you forward me a message from a chat or channel.
-                                
-                <b>2.</b> Send me a photo or video with a caption - the file will be saved with the caption as tags, which you can later use to search for those files. If both a caption and a message are present, the message will take precedence.
-                                
-                To search for saved files, type my username @%s in any chat. Without prompting you will see the last saved files, otherwise the bot will search for files by typed text.
-                """, response.user().username());
+        me = response.user();
     }
 
     public void start() {
@@ -101,8 +95,8 @@ public class BStorageBot {
             text = text.trim().toLowerCase();
             if (text.startsWith("/")) {
                 switch (text.substring(1)) {
-                    case "start", "help" -> sendMessage(user, helpMessage);
-                    default -> sendMessage(user, "Unrecognized command. See /help");
+                    case "start", "help" -> sendHelp(user);
+                    default -> sendMessage(user, messages.getString("command.unknown"));
                 }
             } else {
                 userIdToMessageTextMap.put(user.id(), text);
@@ -120,7 +114,7 @@ public class BStorageBot {
             saveFile(message, user, video.fileUniqueId(), video.fileId(), TelegramFile.Type.VIDEO);
             return;
         }
-        sendMessage(user, helpMessage);
+        sendHelp(user);
     }
 
     public void processInlineQuery(InlineQuery inlineQuery) {
@@ -213,9 +207,9 @@ public class BStorageBot {
         statement.setTimestamp(7, Timestamp.valueOf(LocalDateTime.now()));
         executeStatement(statement);
         if (tags == null) {
-            sendMessage(user, "File saved without tags.");
+            sendMessage(user, messages.getString("file.saved"));
         } else {
-            sendMessage(user, String.format("File saved with tags \"%s\".", tags));
+            sendMessage(user, String.format(messages.getString("file.saved.tags"), tags));
         }
     }
 
@@ -223,6 +217,10 @@ public class BStorageBot {
         logger.debug(statement.toString());
         statement.execute();
         return statement.getResultSet();
+    }
+
+    public void sendHelp(User user) {
+        sendMessage(user, String.format(messages.getString("help"), me.username()));
     }
 
     public void sendMessage(User user, String text) {
