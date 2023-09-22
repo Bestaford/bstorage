@@ -13,6 +13,7 @@ import com.pengrad.telegrambot.request.BaseRequest;
 import com.pengrad.telegrambot.request.GetMe;
 import com.pengrad.telegrambot.request.SendMessage;
 import com.pengrad.telegrambot.response.BaseResponse;
+import org.flywaydb.core.Flyway;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -23,6 +24,8 @@ import java.util.*;
 
 public class BStorageBot {
 
+    public static final String JDBC_URL = "jdbc:h2:./bstorage";
+
     public final Logger logger;
     public final TelegramBot bot;
     public final Map<String, String> mediaGroupIdToCaptionMap;
@@ -32,11 +35,12 @@ public class BStorageBot {
     public final User me;
 
     public BStorageBot() throws SQLException {
+        Flyway.configure().dataSource(JDBC_URL, "", "").load().migrate();
         logger = LoggerFactory.getLogger(getClass());
         bot = new TelegramBot(getenv("BSTORAGE_BOT_TOKEN"));
         mediaGroupIdToCaptionMap = new HashMap<>();
         userIdToMessageTextMap = new HashMap<>();
-        connection = DriverManager.getConnection("jdbc:h2:./bstorage");
+        connection = DriverManager.getConnection(JDBC_URL);
         messages = ResourceBundle.getBundle("messages");
         me = executeBotRequest(new GetMe()).user();
     }
