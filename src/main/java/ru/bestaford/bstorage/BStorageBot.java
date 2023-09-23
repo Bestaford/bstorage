@@ -20,7 +20,7 @@ import ru.bestaford.bstorage.command.AboutCommand;
 import ru.bestaford.bstorage.command.Command;
 import ru.bestaford.bstorage.command.HelpCommand;
 import ru.bestaford.bstorage.command.TopCommand;
-import ru.bestaford.bstorage.model.TelegramFile;
+import ru.bestaford.bstorage.model.File;
 
 import java.io.IOException;
 import java.sql.*;
@@ -111,12 +111,12 @@ public final class BStorageBot {
         PhotoSize[] photoSizes = message.photo();
         if (photoSizes != null) {
             PhotoSize photo = photoSizes[photoSizes.length - 1];
-            saveFile(message, user, photo.fileUniqueId(), photo.fileId(), TelegramFile.Type.PHOTO);
+            saveFile(message, user, photo.fileUniqueId(), photo.fileId(), File.Type.PHOTO);
             return;
         }
         Video video = message.video();
         if (video != null) {
-            saveFile(message, user, video.fileUniqueId(), video.fileId(), TelegramFile.Type.VIDEO);
+            saveFile(message, user, video.fileUniqueId(), video.fileId(), File.Type.VIDEO);
             return;
         }
         commandMap.get("help").execute(user);
@@ -124,8 +124,8 @@ public final class BStorageBot {
 
     public void processInlineQuery(InlineQuery inlineQuery) {
         List<InlineQueryResult<?>> resultsList = new ArrayList<>();
-        List<TelegramFile> files = findFilesByTags(inlineQuery.from(), inlineQuery.query());
-        for (TelegramFile file : files) {
+        List<File> files = findFilesByTags(inlineQuery.from(), inlineQuery.query());
+        for (File file : files) {
             String id = UUID.randomUUID().toString();
             String fileId = file.id();
             switch (file.type()) {
@@ -137,8 +137,8 @@ public final class BStorageBot {
         executeAsyncBotRequest(new AnswerInlineQuery(inlineQuery.id(), resultsArray).isPersonal(true).cacheTime(0));
     }
 
-    public List<TelegramFile> findFilesByTags(User user, String tags) {
-        List<TelegramFile> files = new ArrayList<>();
+    public List<File> findFilesByTags(User user, String tags) {
+        List<File> files = new ArrayList<>();
         try {
             PreparedStatement statement;
             if (tags == null || tags.isBlank()) {
@@ -175,8 +175,8 @@ public final class BStorageBot {
             ResultSet resultSet = executeStatement(statement);
             while (resultSet.next()) {
                 String id = resultSet.getString(4);
-                TelegramFile.Type type = TelegramFile.Type.valueOf(resultSet.getString(5));
-                files.add(new TelegramFile(id, type));
+                File.Type type = File.Type.valueOf(resultSet.getString(5));
+                files.add(new File(id, type));
             }
         } catch (Exception e) {
             logger.error("Failed to find files", e);
@@ -184,7 +184,7 @@ public final class BStorageBot {
         return files;
     }
 
-    public void saveFile(Message message, User user, String fileUniqueId, String fileId, TelegramFile.Type fileType) throws Exception {
+    public void saveFile(Message message, User user, String fileUniqueId, String fileId, File.Type fileType) throws Exception {
         Long userId = user.id();
         String mediaGroupId = message.mediaGroupId();
         String tags = userIdToMessageTextMap.remove(userId);
