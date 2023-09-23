@@ -16,6 +16,10 @@ import com.pengrad.telegrambot.response.BaseResponse;
 import org.flywaydb.core.Flyway;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import ru.bestaford.bstorage.command.AboutCommand;
+import ru.bestaford.bstorage.command.Command;
+import ru.bestaford.bstorage.command.HelpCommand;
+import ru.bestaford.bstorage.command.TopCommand;
 import ru.bestaford.bstorage.model.TelegramFile;
 
 import java.io.IOException;
@@ -23,9 +27,9 @@ import java.sql.*;
 import java.time.LocalDateTime;
 import java.util.*;
 
-public class BStorageBot {
+public final class BStorageBot {
 
-    public static final String VERSION = "1.0.2";
+    public static final String VERSION = "1.0.3";
 
     public static final String JDBC_URL = "jdbc:h2:./bstorage";
     public static final String JDBC_USER = "";
@@ -37,19 +41,27 @@ public class BStorageBot {
     public final TelegramBot bot;
     public final Map<String, String> mediaGroupIdToTagsMap;
     public final Map<Long, String> userIdToMessageTextMap;
+    public final Map<String, Command> commandMap;
     public final Connection connection;
     public final ResourceBundle messages;
     public final User me;
 
-    public BStorageBot(String botToken) throws SQLException {
+    public BStorageBot(String botToken) throws Exception {
         Flyway.configure().dataSource(JDBC_URL, JDBC_USER, JDBC_PASSWORD).load().migrate();
+
         logger = LoggerFactory.getLogger(getClass());
         bot = new TelegramBot(botToken);
         mediaGroupIdToTagsMap = new HashMap<>();
         userIdToMessageTextMap = new HashMap<>();
+        commandMap = new HashMap<>();
         connection = DriverManager.getConnection(JDBC_URL);
         messages = ResourceBundle.getBundle("messages");
         me = executeBotRequest(new GetMe()).user();
+
+        commandMap.put("start", new HelpCommand(this));
+        commandMap.put("help", new HelpCommand(this));
+        commandMap.put("top", new TopCommand(this));
+        commandMap.put("about", new AboutCommand(this));
     }
 
     public void start() {
@@ -58,7 +70,7 @@ public class BStorageBot {
                 logger.debug(update.toString());
                 try {
                     processUpdate(update);
-                } catch (SQLException e) {
+                } catch (Exception e) {
                     logger.error("Failed to process update", e);
                 }
             }
@@ -67,7 +79,7 @@ public class BStorageBot {
         logger.info("Bot started");
     }
 
-    public void processUpdate(Update update) throws SQLException {
+    public void processUpdate(Update update) throws Exception {
         InlineQuery inlineQuery = update.inlineQuery();
         if (inlineQuery != null) {
             processInlineQuery(inlineQuery);
@@ -85,11 +97,11 @@ public class BStorageBot {
         if (text != null && !text.isBlank()) {
             text = text.trim().toLowerCase();
             if (text.startsWith("/")) {
-                switch (text.substring(1)) {
-                    case "start", "help" -> sendHelp(user);
-                    case "top" -> sendTopTags(user);
-                    case "about" -> sendMessage(user, String.format(messages.getString("about"), VERSION));
-                    default -> sendMessage(user, messages.getString("command.unknown"));
+                Command command = commandMap.get(text.substring(1));
+                if (command == null) {
+                    sendMessage(user, messages.getString("command.unknown"));
+                } else {
+                    command.execute(user);
                 }
             } else {
                 userIdToMessageTextMap.put(user.id(), text);
@@ -107,49 +119,7 @@ public class BStorageBot {
             saveFile(message, user, video.fileUniqueId(), video.fileId(), TelegramFile.Type.VIDEO);
             return;
         }
-        sendHelp(user);
-    }
-
-    public void sendTopTags(User user) throws SQLException {
-        List<String> tagList = new ArrayList<>();
-        PreparedStatement statement = connection.prepareStatement("""
-                SELECT
-                    *
-                FROM
-                    FILES
-                WHERE
-                    USER_ID = ?
-                """);
-        statement.setLong(1, user.id());
-        ResultSet resultSet = executeStatement(statement);
-        while (resultSet.next()) {
-            String tags = resultSet.getString(6);
-            if (tags != null) {
-                tagList.addAll(Arrays.stream(tags.split(REGEX_WHITESPACES)).map(String::trim).filter(s -> !s.isBlank()).toList());
-            }
-        }
-        Set<String> tagSet = new TreeSet<>((o1, o2) -> {
-            if (o1.equals(o2)) {
-                return 0;
-            }
-            int f1 = Collections.frequency(tagList, o1);
-            int f2 = Collections.frequency(tagList, o2);
-            if (f1 > f2) {
-                return -1;
-            }
-            return 1;
-        });
-        tagSet.addAll(tagList);
-        if (tagSet.isEmpty()) {
-            sendMessage(user, messages.getString("top.empty"));
-        } else {
-            StringBuilder result = new StringBuilder(messages.getString("top.list"));
-            result.append("\n");
-            for (String tag : tagSet) {
-                result.append(String.format("\n#%s: %d", tag, Collections.frequency(tagList, tag)));
-            }
-            sendMessage(user, result.toString());
-        }
+        commandMap.get("help").execute(user);
     }
 
     public void processInlineQuery(InlineQuery inlineQuery) {
@@ -208,13 +178,13 @@ public class BStorageBot {
                 TelegramFile.Type type = TelegramFile.Type.valueOf(resultSet.getString(5));
                 files.add(new TelegramFile(id, type));
             }
-        } catch (SQLException e) {
+        } catch (Exception e) {
             logger.error("Failed to find files", e);
         }
         return files;
     }
 
-    public void saveFile(Message message, User user, String fileUniqueId, String fileId, TelegramFile.Type fileType) throws SQLException {
+    public void saveFile(Message message, User user, String fileUniqueId, String fileId, TelegramFile.Type fileType) throws Exception {
         Long userId = user.id();
         String mediaGroupId = message.mediaGroupId();
         String tags = userIdToMessageTextMap.remove(userId);
@@ -247,14 +217,10 @@ public class BStorageBot {
         }
     }
 
-    public ResultSet executeStatement(PreparedStatement statement) throws SQLException {
+    public ResultSet executeStatement(PreparedStatement statement) throws Exception {
         logger.debug(statement.toString());
         statement.execute();
         return statement.getResultSet();
-    }
-
-    public void sendHelp(User user) {
-        sendMessage(user, String.format(messages.getString("help"), me.username()));
     }
 
     public void sendMessage(User user, String text) {
@@ -283,7 +249,7 @@ public class BStorageBot {
         });
     }
 
-    public void stop() throws SQLException {
+    public void stop() throws Exception {
         logger.info("Shutting down...");
         connection.close();
         bot.removeGetUpdatesListener();
@@ -294,13 +260,13 @@ public class BStorageBot {
         return Objects.requireNonNull(System.getenv(name), "Missing environment variable " + name);
     }
 
-    public static void main(String[] args) throws SQLException {
+    public static void main(String[] args) throws Exception {
         BStorageBot bStorageBot = new BStorageBot(getenv("BSTORAGE_BOT_TOKEN"));
         bStorageBot.start();
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             try {
                 bStorageBot.stop();
-            } catch (SQLException e) {
+            } catch (Exception e) {
                 throw new RuntimeException(e);
             }
             Runtime.getRuntime().halt(0);
