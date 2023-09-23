@@ -1,4 +1,4 @@
-package ru.bestaford.bstorage;
+package ru.bestaford.bstorage.model;
 
 public record TelegramFile(String id, Type type) {
 

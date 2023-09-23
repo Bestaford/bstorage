@@ -16,6 +16,7 @@ import com.pengrad.telegrambot.response.BaseResponse;
 import org.flywaydb.core.Flyway;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import ru.bestaford.bstorage.model.TelegramFile;
 
 import java.io.IOException;
 import java.sql.*;
@@ -30,6 +31,8 @@ public class BStorageBot {
     public static final String JDBC_USER = "";
     public static final String JDBC_PASSWORD = "";
 
+    public static final String REGEX_WHITESPACES = "\\s+";
+
     public final Logger logger;
     public final TelegramBot bot;
     public final Map<String, String> mediaGroupIdToTagsMap;
@@ -38,10 +41,10 @@ public class BStorageBot {
     public final ResourceBundle messages;
     public final User me;
 
-    public BStorageBot() throws SQLException {
+    public BStorageBot(String botToken) throws SQLException {
         Flyway.configure().dataSource(JDBC_URL, JDBC_USER, JDBC_PASSWORD).load().migrate();
         logger = LoggerFactory.getLogger(getClass());
-        bot = new TelegramBot(getenv("BSTORAGE_BOT_TOKEN"));
+        bot = new TelegramBot(botToken);
         mediaGroupIdToTagsMap = new HashMap<>();
         userIdToMessageTextMap = new HashMap<>();
         connection = DriverManager.getConnection(JDBC_URL);
@@ -122,7 +125,7 @@ public class BStorageBot {
         while (resultSet.next()) {
             String tags = resultSet.getString(6);
             if (tags != null) {
-                tagList.addAll(Arrays.stream(tags.split("\\s+")).map(String::trim).filter(s -> !s.isBlank()).toList());
+                tagList.addAll(Arrays.stream(tags.split(REGEX_WHITESPACES)).map(String::trim).filter(s -> !s.isBlank()).toList());
             }
         }
         Set<String> tagSet = new TreeSet<>((o1, o2) -> {
@@ -226,7 +229,7 @@ public class BStorageBot {
             }
         }
         if (tags != null) {
-            tags = tags.trim().replaceAll("\\s+", " ").toLowerCase();
+            tags = tags.trim().replaceAll(REGEX_WHITESPACES, " ").toLowerCase();
         }
         PreparedStatement statement = connection.prepareStatement("MERGE INTO FILES VALUES (?, ?, ?, ?, ?, ?, ?)");
         statement.setString(1, userId + fileUniqueId);
@@ -292,7 +295,7 @@ public class BStorageBot {
     }
 
     public static void main(String[] args) throws SQLException {
-        BStorageBot bStorageBot = new BStorageBot();
+        BStorageBot bStorageBot = new BStorageBot(getenv("BSTORAGE_BOT_TOKEN"));
         bStorageBot.start();
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             try {
