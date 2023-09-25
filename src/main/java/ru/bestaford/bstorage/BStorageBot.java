@@ -29,7 +29,7 @@ import java.util.*;
 
 public final class BStorageBot {
 
-    public static final String VERSION = "1.0.3";
+    public static final String VERSION = "1.0.4";
 
     public static final String JDBC_URL = "jdbc:h2:./bstorage";
     public static final String JDBC_USER = "";
@@ -124,7 +124,7 @@ public final class BStorageBot {
 
     public void processInlineQuery(InlineQuery inlineQuery) {
         List<InlineQueryResult<?>> resultsList = new ArrayList<>();
-        List<File> files = findFilesByTags(inlineQuery.from(), inlineQuery.query());
+        List<File> files = findFilesByTags(inlineQuery.from(), inlineQuery.query().trim().toLowerCase());
         for (File file : files) {
             String id = UUID.randomUUID().toString();
             String fileId = file.id();
@@ -151,6 +151,19 @@ public final class BStorageBot {
                             USER_ID = ?
                         ORDER BY
                             DATETIME DESC
+                        FETCH FIRST 50 ROWS ONLY
+                        """);
+                statement.setLong(1, user.id());
+            } else if (tags.equals("*")) {
+                statement = connection.prepareStatement("""
+                        SELECT
+                            *
+                        FROM
+                            FILES
+                        WHERE
+                            USER_ID = ?
+                        ORDER BY
+                            RAND()
                         FETCH FIRST 50 ROWS ONLY
                         """);
                 statement.setLong(1, user.id());
