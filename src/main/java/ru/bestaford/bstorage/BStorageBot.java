@@ -4,10 +4,7 @@ import com.pengrad.telegrambot.Callback;
 import com.pengrad.telegrambot.TelegramBot;
 import com.pengrad.telegrambot.UpdatesListener;
 import com.pengrad.telegrambot.model.*;
-import com.pengrad.telegrambot.model.request.InlineQueryResult;
-import com.pengrad.telegrambot.model.request.InlineQueryResultCachedPhoto;
-import com.pengrad.telegrambot.model.request.InlineQueryResultCachedVideo;
-import com.pengrad.telegrambot.model.request.ParseMode;
+import com.pengrad.telegrambot.model.request.*;
 import com.pengrad.telegrambot.request.AnswerInlineQuery;
 import com.pengrad.telegrambot.request.BaseRequest;
 import com.pengrad.telegrambot.request.GetMe;
@@ -29,7 +26,7 @@ import java.util.*;
 
 public final class BStorageBot {
 
-    public static final String VERSION = "1.0.4";
+    public static final String VERSION = "1.0.5";
 
     public static final String JDBC_URL = "jdbc:h2:./bstorage";
     public static final String JDBC_USER = "";
@@ -76,7 +73,7 @@ public final class BStorageBot {
             }
             return UpdatesListener.CONFIRMED_UPDATES_ALL;
         });
-        logger.info("Bot started");
+        logger.info(String.format("bStorage v%s started", VERSION));
     }
 
     public void processUpdate(Update update) throws Exception {
@@ -111,12 +108,17 @@ public final class BStorageBot {
         PhotoSize[] photoSizes = message.photo();
         if (photoSizes != null) {
             PhotoSize photo = photoSizes[photoSizes.length - 1];
-            saveFile(message, user, photo.fileUniqueId(), photo.fileId(), File.Type.PHOTO);
+            saveFile(message, user, photo.fileUniqueId(), photo.fileId(), null, File.Type.PHOTO);
             return;
         }
         Video video = message.video();
         if (video != null) {
-            saveFile(message, user, video.fileUniqueId(), video.fileId(), File.Type.VIDEO);
+            saveFile(message, user, video.fileUniqueId(), video.fileId(), video.fileName(), File.Type.VIDEO);
+            return;
+        }
+        Document document = message.document();
+        if (document != null) {
+            saveFile(message, user, document.fileUniqueId(), document.fileId(), document.fileName(), File.Type.DOCUMENT);
             return;
         }
         commandMap.get("help").execute(user);
@@ -128,9 +130,11 @@ public final class BStorageBot {
         for (File file : files) {
             String id = UUID.randomUUID().toString();
             String fileId = file.id();
+            String fileTitle = file.title() == null ? " " : file.title();
             switch (file.type()) {
                 case PHOTO -> resultsList.add(new InlineQueryResultCachedPhoto(id, fileId));
-                case VIDEO -> resultsList.add(new InlineQueryResultCachedVideo(id, fileId, " "));
+                case VIDEO -> resultsList.add(new InlineQueryResultCachedVideo(id, fileId, fileTitle));
+                case DOCUMENT -> resultsList.add(new InlineQueryResultCachedDocument(id, fileId, fileTitle));
             }
         }
         InlineQueryResult<?>[] resultsArray = resultsList.toArray(new InlineQueryResult<?>[0]);
@@ -188,8 +192,9 @@ public final class BStorageBot {
             ResultSet resultSet = executeStatement(statement);
             while (resultSet.next()) {
                 String id = resultSet.getString(4);
+                String title = resultSet.getString(8);
                 File.Type type = File.Type.valueOf(resultSet.getString(5));
-                files.add(new File(id, type));
+                files.add(new File(id, title, type));
             }
         } catch (Exception e) {
             logger.error("Failed to find files", e);
@@ -197,7 +202,7 @@ public final class BStorageBot {
         return files;
     }
 
-    public void saveFile(Message message, User user, String fileUniqueId, String fileId, File.Type fileType) throws Exception {
+    public void saveFile(Message message, User user, String fileUniqueId, String fileId, String title, File.Type fileType) throws Exception {
         Long userId = user.id();
         String mediaGroupId = message.mediaGroupId();
         String tags = userIdToMessageTextMap.remove(userId);
@@ -214,7 +219,7 @@ public final class BStorageBot {
         if (tags != null) {
             tags = tags.trim().replaceAll(REGEX_WHITESPACES, " ").toLowerCase();
         }
-        PreparedStatement statement = connection.prepareStatement("MERGE INTO FILES VALUES (?, ?, ?, ?, ?, ?, ?)");
+        PreparedStatement statement = connection.prepareStatement("MERGE INTO FILES VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
         statement.setString(1, userId + fileUniqueId);
         statement.setLong(2, userId);
         statement.setString(3, fileUniqueId);
@@ -222,6 +227,7 @@ public final class BStorageBot {
         statement.setString(5, fileType.toString());
         statement.setString(6, tags);
         statement.setTimestamp(7, Timestamp.valueOf(LocalDateTime.now()));
+        statement.setString(8, title);
         executeStatement(statement);
         if (tags == null) {
             sendMessage(user, messages.getString("file.saved"));
