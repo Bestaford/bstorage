@@ -5,6 +5,7 @@ public record File(String id, String title, Type type) {
     public enum Type {
         PHOTO,
         VIDEO,
-        DOCUMENT
+        DOCUMENT,
+        AUDIO
     }
 }

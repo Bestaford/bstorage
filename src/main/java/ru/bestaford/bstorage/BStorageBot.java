@@ -121,6 +121,11 @@ public final class BStorageBot {
             saveFile(message, user, document.fileUniqueId(), document.fileId(), document.fileName(), File.Type.DOCUMENT);
             return;
         }
+        Audio audio = message.audio();
+        if (audio != null) {
+            saveFile(message, user, audio.fileUniqueId(), audio.fileId(), audio.fileName(), File.Type.AUDIO);
+            return;
+        }
         commandMap.get("help").execute(user);
     }
 
@@ -135,6 +140,7 @@ public final class BStorageBot {
                 case PHOTO -> resultsList.add(new InlineQueryResultCachedPhoto(id, fileId));
                 case VIDEO -> resultsList.add(new InlineQueryResultCachedVideo(id, fileId, fileTitle));
                 case DOCUMENT -> resultsList.add(new InlineQueryResultCachedDocument(id, fileId, fileTitle));
+                case AUDIO -> resultsList.add(new InlineQueryResultCachedAudio(id, fileId));
             }
         }
         InlineQueryResult<?>[] resultsArray = resultsList.toArray(new InlineQueryResult<?>[0]);
