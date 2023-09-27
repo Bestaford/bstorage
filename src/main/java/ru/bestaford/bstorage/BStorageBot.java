@@ -116,14 +116,19 @@ public final class BStorageBot {
             saveFile(message, user, video.fileUniqueId(), video.fileId(), video.fileName(), File.Type.VIDEO);
             return;
         }
-        Document document = message.document();
-        if (document != null) {
-            saveFile(message, user, document.fileUniqueId(), document.fileId(), document.fileName(), File.Type.DOCUMENT);
-            return;
-        }
         Audio audio = message.audio();
         if (audio != null) {
             saveFile(message, user, audio.fileUniqueId(), audio.fileId(), audio.fileName(), File.Type.AUDIO);
+            return;
+        }
+        Animation animation = message.animation();
+        if (animation != null) {
+            saveFile(message, user, animation.fileUniqueId(), animation.fileId(), animation.fileName(), File.Type.GIF);
+            return;
+        }
+        Document document = message.document();
+        if (document != null) {
+            saveFile(message, user, document.fileUniqueId(), document.fileId(), document.fileName(), File.Type.DOCUMENT);
             return;
         }
         commandMap.get("help").execute(user);
@@ -141,6 +146,7 @@ public final class BStorageBot {
                 case VIDEO -> resultsList.add(new InlineQueryResultCachedVideo(id, fileId, fileTitle));
                 case DOCUMENT -> resultsList.add(new InlineQueryResultCachedDocument(id, fileId, fileTitle));
                 case AUDIO -> resultsList.add(new InlineQueryResultCachedAudio(id, fileId));
+                case GIF -> resultsList.add(new InlineQueryResultCachedGif(id, fileId));
             }
         }
         InlineQueryResult<?>[] resultsArray = resultsList.toArray(new InlineQueryResult<?>[0]);
