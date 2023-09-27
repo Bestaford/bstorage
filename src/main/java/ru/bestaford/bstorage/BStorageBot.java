@@ -131,6 +131,11 @@ public final class BStorageBot {
             saveFile(message, user, sticker.fileUniqueId(), sticker.fileId(), null, File.Type.STICKER);
             return;
         }
+        Voice voice = message.voice();
+        if (voice != null) {
+            saveFile(message, user, voice.fileUniqueId(), voice.fileId(), null, File.Type.VOICE);
+            return;
+        }
         Document document = message.document();
         if (document != null) {
             saveFile(message, user, document.fileUniqueId(), document.fileId(), document.fileName(), File.Type.DOCUMENT);
@@ -153,6 +158,7 @@ public final class BStorageBot {
                 case AUDIO -> resultsList.add(new InlineQueryResultCachedAudio(id, fileId));
                 case GIF -> resultsList.add(new InlineQueryResultCachedGif(id, fileId));
                 case STICKER -> resultsList.add(new InlineQueryResultCachedSticker(id, fileId));
+                case VOICE -> resultsList.add(new InlineQueryResultCachedVoice(id, fileId, title));
             }
         }
         InlineQueryResult<?>[] resultsArray = resultsList.toArray(new InlineQueryResult<?>[0]);

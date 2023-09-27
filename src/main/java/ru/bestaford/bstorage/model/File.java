@@ -8,6 +8,7 @@ public record File(String id, String fileName, Type type) {
         DOCUMENT,
         AUDIO,
         GIF,
-        STICKER
+        STICKER,
+        VOICE
     }
 }
