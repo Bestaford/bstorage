@@ -26,7 +26,7 @@ import java.util.*;
 
 public final class BStorageBot {
 
-    public static final String VERSION = "1.0.5";
+    public static final String VERSION = "1.0.6";
 
     public static final String JDBC_URL = "jdbc:h2:./bstorage";
     public static final String JDBC_USER = "";
@@ -108,37 +108,37 @@ public final class BStorageBot {
         PhotoSize[] photoSizes = message.photo();
         if (photoSizes != null) {
             PhotoSize photo = photoSizes[photoSizes.length - 1];
-            saveFile(message, user, photo.fileUniqueId(), photo.fileId(), null, File.Type.PHOTO);
+            processFile(message, user, photo.fileUniqueId(), photo.fileId(), null, File.Type.PHOTO);
             return;
         }
         Video video = message.video();
         if (video != null) {
-            saveFile(message, user, video.fileUniqueId(), video.fileId(), video.fileName(), File.Type.VIDEO);
+            processFile(message, user, video.fileUniqueId(), video.fileId(), video.fileName(), File.Type.VIDEO);
             return;
         }
         Audio audio = message.audio();
         if (audio != null) {
-            saveFile(message, user, audio.fileUniqueId(), audio.fileId(), audio.fileName(), File.Type.AUDIO);
+            processFile(message, user, audio.fileUniqueId(), audio.fileId(), audio.fileName(), File.Type.AUDIO);
             return;
         }
         Animation animation = message.animation();
         if (animation != null) {
-            saveFile(message, user, animation.fileUniqueId(), animation.fileId(), animation.fileName(), File.Type.GIF);
+            processFile(message, user, animation.fileUniqueId(), animation.fileId(), animation.fileName(), File.Type.GIF);
             return;
         }
         Sticker sticker = message.sticker();
         if (sticker != null) {
-            saveFile(message, user, sticker.fileUniqueId(), sticker.fileId(), null, File.Type.STICKER);
+            processFile(message, user, sticker.fileUniqueId(), sticker.fileId(), null, File.Type.STICKER);
             return;
         }
         Voice voice = message.voice();
         if (voice != null) {
-            saveFile(message, user, voice.fileUniqueId(), voice.fileId(), null, File.Type.VOICE);
+            processFile(message, user, voice.fileUniqueId(), voice.fileId(), null, File.Type.VOICE);
             return;
         }
         Document document = message.document();
         if (document != null) {
-            saveFile(message, user, document.fileUniqueId(), document.fileId(), document.fileName(), File.Type.DOCUMENT);
+            processFile(message, user, document.fileUniqueId(), document.fileId(), document.fileName(), File.Type.DOCUMENT);
             return;
         }
         commandMap.get("help").execute(user);
@@ -226,8 +226,9 @@ public final class BStorageBot {
         return files;
     }
 
-    public void saveFile(Message message, User user, String fileUniqueId, String fileId, String fileName, File.Type fileType) throws Exception {
+    public void processFile(Message message, User user, String fileUniqueId, String fileId, String fileName, File.Type fileType) throws Exception {
         Long userId = user.id();
+        String rowId = userId + fileUniqueId;
         String mediaGroupId = message.mediaGroupId();
         String tags = userIdToMessageTextMap.remove(userId);
         if (tags == null) {
@@ -243,16 +244,43 @@ public final class BStorageBot {
         if (tags != null) {
             tags = tags.trim().replaceAll(REGEX_WHITESPACES, " ").toLowerCase();
         }
-        PreparedStatement statement = connection.prepareStatement("MERGE INTO FILES VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
-        statement.setString(1, userId + fileUniqueId);
-        statement.setLong(2, userId);
-        statement.setString(3, fileUniqueId);
-        statement.setString(4, fileId);
-        statement.setString(5, fileType.toString());
-        statement.setString(6, tags);
-        statement.setTimestamp(7, Timestamp.valueOf(LocalDateTime.now()));
-        statement.setString(8, fileName);
-        executeStatement(statement);
+
+        if (tags == null || tags.isBlank()) {
+            PreparedStatement countStatement = connection.prepareStatement("""
+                    SELECT
+                        COUNT(*)
+                    FROM
+                        FILES
+                    WHERE
+                        ID = ?
+                    """);
+            countStatement.setString(1, rowId);
+            ResultSet resultSet = executeStatement(countStatement);
+            resultSet.next();
+            if (resultSet.getInt(1) > 0) {
+                PreparedStatement deleteStatement = connection.prepareStatement("""
+                        DELETE FROM
+                            FILES
+                        WHERE
+                            ID = ?
+                        """);
+                deleteStatement.setString(1, rowId);
+                executeStatement(deleteStatement);
+                replyToMessage(user, messages.getString("file.deleted"), message.messageId());
+                return;
+            }
+        }
+
+        PreparedStatement mergeStatement = connection.prepareStatement("MERGE INTO FILES VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+        mergeStatement.setString(1, rowId);
+        mergeStatement.setLong(2, userId);
+        mergeStatement.setString(3, fileUniqueId);
+        mergeStatement.setString(4, fileId);
+        mergeStatement.setString(5, fileType.toString());
+        mergeStatement.setString(6, tags);
+        mergeStatement.setTimestamp(7, Timestamp.valueOf(LocalDateTime.now()));
+        mergeStatement.setString(8, fileName);
+        executeStatement(mergeStatement);
         if (tags == null) {
             replyToMessage(user, messages.getString("file.saved"), message.messageId());
         } else {
