@@ -140,11 +140,11 @@ public final class BStorageBot {
         for (File file : files) {
             String id = UUID.randomUUID().toString();
             String fileId = file.id();
-            String fileTitle = file.title() == null ? " " : file.title();
+            String title = file.fileName() == null ? " " : file.fileName();
             switch (file.type()) {
                 case PHOTO -> resultsList.add(new InlineQueryResultCachedPhoto(id, fileId));
-                case VIDEO -> resultsList.add(new InlineQueryResultCachedVideo(id, fileId, fileTitle));
-                case DOCUMENT -> resultsList.add(new InlineQueryResultCachedDocument(id, fileId, fileTitle));
+                case VIDEO -> resultsList.add(new InlineQueryResultCachedVideo(id, fileId, title));
+                case DOCUMENT -> resultsList.add(new InlineQueryResultCachedDocument(id, fileId, title));
                 case AUDIO -> resultsList.add(new InlineQueryResultCachedAudio(id, fileId));
                 case GIF -> resultsList.add(new InlineQueryResultCachedGif(id, fileId));
             }
@@ -204,9 +204,9 @@ public final class BStorageBot {
             ResultSet resultSet = executeStatement(statement);
             while (resultSet.next()) {
                 String id = resultSet.getString(4);
-                String title = resultSet.getString(8);
+                String fileName = resultSet.getString(8);
                 File.Type type = File.Type.valueOf(resultSet.getString(5));
-                files.add(new File(id, title, type));
+                files.add(new File(id, fileName, type));
             }
         } catch (Exception e) {
             logger.error("Failed to find files", e);
@@ -214,7 +214,7 @@ public final class BStorageBot {
         return files;
     }
 
-    public void saveFile(Message message, User user, String fileUniqueId, String fileId, String title, File.Type fileType) throws Exception {
+    public void saveFile(Message message, User user, String fileUniqueId, String fileId, String fileName, File.Type fileType) throws Exception {
         Long userId = user.id();
         String mediaGroupId = message.mediaGroupId();
         String tags = userIdToMessageTextMap.remove(userId);
@@ -239,7 +239,7 @@ public final class BStorageBot {
         statement.setString(5, fileType.toString());
         statement.setString(6, tags);
         statement.setTimestamp(7, Timestamp.valueOf(LocalDateTime.now()));
-        statement.setString(8, title);
+        statement.setString(8, fileName);
         executeStatement(statement);
         if (tags == null) {
             sendMessage(user, messages.getString("file.saved"));
