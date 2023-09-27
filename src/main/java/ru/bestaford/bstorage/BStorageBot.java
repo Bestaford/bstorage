@@ -254,9 +254,9 @@ public final class BStorageBot {
         statement.setString(8, fileName);
         executeStatement(statement);
         if (tags == null) {
-            sendMessage(user, messages.getString("file.saved"));
+            replyToMessage(user, messages.getString("file.saved"), message.messageId());
         } else {
-            sendMessage(user, String.format(messages.getString("file.saved.tags"), tags.replaceAll("\\b(\\p{L}+)\\b", "#$1")));
+            replyToMessage(user, String.format(messages.getString("file.saved.tags"), tags.replaceAll("\\b(\\p{L}+)\\b", "#$1")), message.messageId());
         }
     }
 
@@ -268,6 +268,10 @@ public final class BStorageBot {
 
     public void sendMessage(User user, String text) {
         executeAsyncBotRequest(new SendMessage(user.id(), text).parseMode(ParseMode.HTML));
+    }
+
+    public void replyToMessage(User user, String text, int replyToMessageId) {
+        executeAsyncBotRequest(new SendMessage(user.id(), text).parseMode(ParseMode.HTML).replyToMessageId(replyToMessageId));
     }
 
     public <T extends BaseRequest<T, R>, R extends BaseResponse> R executeBotRequest(BaseRequest<T, R> request) {
