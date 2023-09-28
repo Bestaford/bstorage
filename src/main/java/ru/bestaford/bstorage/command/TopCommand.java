@@ -62,7 +62,7 @@ public final class TopCommand extends Command {
         }
         List<String> page = new ArrayList<>();
         for (int i = offset; page.size() < ITEMS_ON_PAGE; i++) {
-            if (i >= result.size()) {
+            if (i < 0 || i >= result.size()) {
                 break;
             }
             page.add(result.get(i));
@@ -74,7 +74,7 @@ public final class TopCommand extends Command {
         }
         InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
         List<InlineKeyboardButton> buttonList = new ArrayList<>();
-        if (offset + page.size() > ITEMS_ON_PAGE) {
+        if (offset >= ITEMS_ON_PAGE) {
             buttonList.add(new InlineKeyboardButton("⬅️️").callbackData(String.valueOf(offset - ITEMS_ON_PAGE)));
         }
         if (result.size() > offset + page.size()) {
