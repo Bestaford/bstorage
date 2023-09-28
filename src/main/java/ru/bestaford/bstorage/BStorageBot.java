@@ -77,6 +77,13 @@ public final class BStorageBot {
     }
 
     public void processUpdate(Update update) throws Exception {
+        CallbackQuery callbackQuery = update.callbackQuery();
+        if (callbackQuery != null) {
+            for (Command command : commandMap.values()) {
+                command.processCallbackQuery(callbackQuery);
+            }
+            return;
+        }
         InlineQuery inlineQuery = update.inlineQuery();
         if (inlineQuery != null) {
             processInlineQuery(inlineQuery);
