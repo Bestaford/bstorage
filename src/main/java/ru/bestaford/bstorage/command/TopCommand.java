@@ -23,7 +23,7 @@ public final class TopCommand extends Command {
 
     public TopCommand(BStorageBot bot) {
         super(bot);
-        uuidToMessageMap = new WeakHashMap<>();
+        uuidToMessageMap = new HashMap<>();
     }
 
     @Override
