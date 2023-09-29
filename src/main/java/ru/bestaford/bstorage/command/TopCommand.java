@@ -1,11 +1,14 @@
 package ru.bestaford.bstorage.command;
 
 import com.pengrad.telegrambot.model.CallbackQuery;
+import com.pengrad.telegrambot.model.Message;
 import com.pengrad.telegrambot.model.User;
 import com.pengrad.telegrambot.model.request.InlineKeyboardButton;
 import com.pengrad.telegrambot.model.request.InlineKeyboardMarkup;
 import com.pengrad.telegrambot.request.AnswerCallbackQuery;
+import com.pengrad.telegrambot.request.EditMessageText;
 import com.pengrad.telegrambot.request.SendMessage;
+import com.pengrad.telegrambot.response.SendResponse;
 import ru.bestaford.bstorage.BStorageBot;
 
 import java.sql.PreparedStatement;
@@ -16,16 +19,25 @@ public final class TopCommand extends Command {
 
     public static final int ITEMS_ON_PAGE = 10;
 
+    public final Map<UUID, Message> uuidToMessageMap;
+
     public TopCommand(BStorageBot bot) {
         super(bot);
+        uuidToMessageMap = new WeakHashMap<>();
     }
 
     @Override
     public void execute(User user) throws Exception {
-        send(user, 0);
+        for (Map.Entry<UUID, Message> entry : uuidToMessageMap.entrySet()) {
+            if (entry.getValue().chat().id().equals(user.id())) {
+                uuidToMessageMap.remove(entry.getKey());
+                break;
+            }
+        }
+        send(user, 0, UUID.randomUUID(), true);
     }
 
-    public void send(User user, int offset) throws Exception {
+    public void send(User user, int offset, UUID uuid, boolean isNewRequest) throws Exception {
         List<String> tagList = new ArrayList<>();
         PreparedStatement statement = bot.connection.prepareStatement("""
                 SELECT
@@ -75,18 +87,28 @@ public final class TopCommand extends Command {
         InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
         List<InlineKeyboardButton> buttonList = new ArrayList<>();
         if (offset >= ITEMS_ON_PAGE) {
-            buttonList.add(new InlineKeyboardButton("⬅️️").callbackData(String.valueOf(offset - ITEMS_ON_PAGE)));
+            buttonList.add(new InlineKeyboardButton("⬅️️").callbackData(uuid + ":" + (offset - ITEMS_ON_PAGE)));
         }
+        buttonList.add(new InlineKeyboardButton("\uD83D\uDD04").callbackData(uuid + ":" + offset));
         if (result.size() > offset + page.size()) {
-            buttonList.add(new InlineKeyboardButton("➡️").callbackData(String.valueOf(offset + ITEMS_ON_PAGE)));
+            buttonList.add(new InlineKeyboardButton("➡️").callbackData(uuid + ":" + (offset + ITEMS_ON_PAGE)));
         }
         markup.addRow(buttonList.toArray(new InlineKeyboardButton[0]));
-        bot.executeAsyncBotRequest(new SendMessage(user.id(), text.toString()).replyMarkup(markup));
+        if (uuidToMessageMap.containsKey(uuid)) {
+            Message message = uuidToMessageMap.get(uuid);
+            bot.executeAsyncBotRequest(new EditMessageText(message.chat().id(), message.messageId(), text.toString()).replyMarkup(markup));
+        } else {
+            if (isNewRequest) {
+                SendResponse response = bot.executeBotRequest(new SendMessage(user.id(), text.toString()).replyMarkup(markup));
+                uuidToMessageMap.put(uuid, response.message());
+            }
+        }
     }
 
     @Override
     public void processCallbackQuery(CallbackQuery callbackQuery) throws Exception {
-        send(callbackQuery.from(), Integer.parseInt(callbackQuery.data()));
+        String[] data = callbackQuery.data().split(":");
+        send(callbackQuery.from(), Integer.parseInt(data[1]), UUID.fromString(data[0]), false);
         bot.executeAsyncBotRequest(new AnswerCallbackQuery(callbackQuery.id()));
     }
 }
