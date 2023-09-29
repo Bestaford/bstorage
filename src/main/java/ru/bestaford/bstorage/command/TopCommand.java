@@ -28,12 +28,6 @@ public final class TopCommand extends Command {
 
     @Override
     public void execute(User user) throws Exception {
-        for (Map.Entry<UUID, Message> entry : uuidToMessageMap.entrySet()) {
-            if (entry.getValue().chat().id().equals(user.id())) {
-                uuidToMessageMap.remove(entry.getKey());
-                break;
-            }
-        }
         send(user, 0, UUID.randomUUID(), true);
     }
 
@@ -79,21 +73,20 @@ public final class TopCommand extends Command {
             }
             page.add(result.get(i));
         }
-        StringBuilder text = new StringBuilder(bot.messages.getString("top.list"));
+        StringBuilder text = new StringBuilder(String.format(bot.messages.getString("top.list"), (offset + ITEMS_ON_PAGE) / ITEMS_ON_PAGE, (result.size() + ITEMS_ON_PAGE) / ITEMS_ON_PAGE));
         text.append("\n");
         for (String tag : page) {
             text.append(String.format("\n#%s: %d", tag, Collections.frequency(tagList, tag)));
         }
         InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
-        List<InlineKeyboardButton> buttonList = new ArrayList<>();
-        if (offset >= ITEMS_ON_PAGE) {
-            buttonList.add(new InlineKeyboardButton("⬅️️").callbackData(uuid + ":" + (offset - ITEMS_ON_PAGE)));
-        }
-        buttonList.add(new InlineKeyboardButton("\uD83D\uDD01").callbackData(uuid + ":" + offset));
-        if (result.size() > offset + page.size()) {
-            buttonList.add(new InlineKeyboardButton("➡️").callbackData(uuid + ":" + (offset + ITEMS_ON_PAGE)));
-        }
-        markup.addRow(buttonList.toArray(new InlineKeyboardButton[0]));
+        InlineKeyboardButton[] buttons = new InlineKeyboardButton[]{
+                new InlineKeyboardButton("⏪").callbackData(uuid + ":" + 0),
+                new InlineKeyboardButton("⬅️️").callbackData(uuid + ":" + (offset >= ITEMS_ON_PAGE ? (offset - ITEMS_ON_PAGE) : offset)),
+                new InlineKeyboardButton("\uD83D\uDD01").callbackData(uuid + ":" + offset),
+                new InlineKeyboardButton("➡️").callbackData(uuid + ":" + (result.size() > offset + page.size() ? (offset + ITEMS_ON_PAGE) : offset)),
+                new InlineKeyboardButton("⏩").callbackData(uuid + ":" + (ITEMS_ON_PAGE * (result.size() / ITEMS_ON_PAGE)))
+        };
+        markup.addRow(buttons);
         if (uuidToMessageMap.containsKey(uuid)) {
             Message message = uuidToMessageMap.get(uuid);
             bot.executeAsyncBotRequest(new EditMessageText(message.chat().id(), message.messageId(), text.toString()).replyMarkup(markup));
