@@ -89,7 +89,7 @@ public final class TopCommand extends Command {
         if (offset >= ITEMS_ON_PAGE) {
             buttonList.add(new InlineKeyboardButton("⬅️️").callbackData(uuid + ":" + (offset - ITEMS_ON_PAGE)));
         }
-        buttonList.add(new InlineKeyboardButton("\uD83D\uDD04").callbackData(uuid + ":" + offset));
+        buttonList.add(new InlineKeyboardButton("\uD83D\uDD01").callbackData(uuid + ":" + offset));
         if (result.size() > offset + page.size()) {
             buttonList.add(new InlineKeyboardButton("➡️").callbackData(uuid + ":" + (offset + ITEMS_ON_PAGE)));
         }
