@@ -7,7 +7,7 @@
     <groupId>ru.bestaford.bstorage</groupId>
     <artifactId>bstorage</artifactId>
     <name>bStorage</name>
-    <version>1.0.8</version>
+    <version>1.0.9</version>
 
     <properties>
         <maven.compiler.source>17</maven.compiler.source>
