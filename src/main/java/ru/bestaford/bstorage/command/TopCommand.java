@@ -79,13 +79,12 @@ public final class TopCommand extends Command {
             text.append(String.format("\n#%s: %d", tag, Collections.frequency(tagList, tag)));
         }
         InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
-        String className = getClass().getSimpleName();
         InlineKeyboardButton[] buttons = new InlineKeyboardButton[]{
-                new InlineKeyboardButton("⏪").callbackData(className + ":" + "first" + ":" + uuid + ":" + 0),
-                new InlineKeyboardButton("⬅️️").callbackData(className + ":" + "previous" + ":" + uuid + ":" + (offset >= ITEMS_ON_PAGE ? (offset - ITEMS_ON_PAGE) : offset)),
-                new InlineKeyboardButton("\uD83D\uDD01").callbackData(className + ":" + "refresh" + ":" + uuid + ":" + offset),
-                new InlineKeyboardButton("➡️").callbackData(className + ":" + "next" + ":" + uuid + ":" + (result.size() > offset + page.size() ? (offset + ITEMS_ON_PAGE) : offset)),
-                new InlineKeyboardButton("⏩").callbackData(className + ":" + "last" + ":" + uuid + ":" + (ITEMS_ON_PAGE * (result.size() / ITEMS_ON_PAGE)))
+                getButton("⏪", "first", uuid, 0),
+                getButton("⬅️️", "previous", uuid, offset >= ITEMS_ON_PAGE ? (offset - ITEMS_ON_PAGE) : offset),
+                getButton("\uD83D\uDD01", "refresh", uuid, offset),
+                getButton("➡️", "next", uuid, result.size() > offset + page.size() ? (offset + ITEMS_ON_PAGE) : offset),
+                getButton("⏩", "last", uuid, ITEMS_ON_PAGE * (result.size() / ITEMS_ON_PAGE))
         };
         markup.addRow(buttons);
         if (uuidToMessageMap.containsKey(uuid)) {
@@ -97,6 +96,10 @@ public final class TopCommand extends Command {
                 uuidToMessageMap.put(uuid, response.message());
             }
         }
+    }
+
+    public InlineKeyboardButton getButton(String text, String name, UUID uuid, int offset) {
+        return new InlineKeyboardButton(text).callbackData(getClass().getSimpleName() + ":" + name + ":" + uuid + ":" + offset);
     }
 
     @Override
