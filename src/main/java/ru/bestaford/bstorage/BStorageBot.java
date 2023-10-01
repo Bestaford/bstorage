@@ -110,7 +110,9 @@ public final class BStorageBot {
             } else {
                 userIdToMessageTextMap.put(user.id(), text);
             }
-            return;
+        }
+        while (message.replyToMessage() != null) {
+            message = message.replyToMessage();
         }
         PhotoSize[] photoSizes = message.photo();
         if (photoSizes != null) {
