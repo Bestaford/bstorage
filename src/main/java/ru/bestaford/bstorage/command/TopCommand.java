@@ -79,12 +79,13 @@ public final class TopCommand extends Command {
             text.append(String.format("\n#%s: %d", tag, Collections.frequency(tagList, tag)));
         }
         InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
+        String className = getClass().getSimpleName();
         InlineKeyboardButton[] buttons = new InlineKeyboardButton[]{
-                new InlineKeyboardButton("⏪").callbackData(uuid + ":" + 0),
-                new InlineKeyboardButton("⬅️️").callbackData(uuid + ":" + (offset >= ITEMS_ON_PAGE ? (offset - ITEMS_ON_PAGE) : offset)),
-                new InlineKeyboardButton("\uD83D\uDD01").callbackData(uuid + ":" + offset),
-                new InlineKeyboardButton("➡️").callbackData(uuid + ":" + (result.size() > offset + page.size() ? (offset + ITEMS_ON_PAGE) : offset)),
-                new InlineKeyboardButton("⏩").callbackData(uuid + ":" + (ITEMS_ON_PAGE * (result.size() / ITEMS_ON_PAGE)))
+                new InlineKeyboardButton("⏪").callbackData(className + ":" + "first" + ":" + uuid + ":" + 0),
+                new InlineKeyboardButton("⬅️️").callbackData(className + ":" + "previous" + ":" + uuid + ":" + (offset >= ITEMS_ON_PAGE ? (offset - ITEMS_ON_PAGE) : offset)),
+                new InlineKeyboardButton("\uD83D\uDD01").callbackData(className + ":" + "refresh" + ":" + uuid + ":" + offset),
+                new InlineKeyboardButton("➡️").callbackData(className + ":" + "next" + ":" + uuid + ":" + (result.size() > offset + page.size() ? (offset + ITEMS_ON_PAGE) : offset)),
+                new InlineKeyboardButton("⏩").callbackData(className + ":" + "last" + ":" + uuid + ":" + (ITEMS_ON_PAGE * (result.size() / ITEMS_ON_PAGE)))
         };
         markup.addRow(buttons);
         if (uuidToMessageMap.containsKey(uuid)) {
@@ -101,7 +102,9 @@ public final class TopCommand extends Command {
     @Override
     public void processCallbackQuery(CallbackQuery callbackQuery) throws Exception {
         String[] data = callbackQuery.data().split(":");
-        send(callbackQuery.from(), Integer.parseInt(data[1]), UUID.fromString(data[0]), false);
-        bot.executeAsyncBotRequest(new AnswerCallbackQuery(callbackQuery.id()));
+        if (data[0].equals(getClass().getSimpleName())) {
+            send(callbackQuery.from(), Integer.parseInt(data[3]), UUID.fromString(data[2]), false);
+            bot.executeAsyncBotRequest(new AnswerCallbackQuery(callbackQuery.id()));
+        }
     }
 }
