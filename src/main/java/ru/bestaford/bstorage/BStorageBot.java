@@ -107,6 +107,7 @@ public final class BStorageBot {
                 } else {
                     command.execute(user);
                 }
+                return;
             } else {
                 userIdToMessageTextMap.put(user.id(), text);
             }
@@ -150,7 +151,9 @@ public final class BStorageBot {
             processFile(message, user, document.fileUniqueId(), document.fileId(), document.fileName(), File.Type.DOCUMENT);
             return;
         }
-        commandMap.get("help").execute(user);
+        if (text == null || text.isBlank()) {
+            commandMap.get("help").execute(user);
+        }
     }
 
     public void processInlineQuery(InlineQuery inlineQuery) {
