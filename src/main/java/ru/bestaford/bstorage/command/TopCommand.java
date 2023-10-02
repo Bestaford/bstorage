@@ -22,7 +22,7 @@ public final class TopCommand extends Command {
     public final Map<UUID, Message> uuidToMessageMap;
 
     public TopCommand(BStorageBot bot) {
-        super(bot);
+        super(bot, "Your most used tags");
         uuidToMessageMap = new HashMap<>();
     }
 

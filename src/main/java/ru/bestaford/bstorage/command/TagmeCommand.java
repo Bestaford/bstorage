@@ -11,7 +11,7 @@ import java.sql.ResultSet;
 public final class TagmeCommand extends Command {
 
     public TagmeCommand(BStorageBot bot) {
-        super(bot);
+        super(bot, "Last untagged file");
     }
 
     @Override

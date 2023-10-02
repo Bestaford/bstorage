@@ -6,10 +6,12 @@ import ru.bestaford.bstorage.BStorageBot;
 
 public abstract class Command {
 
-    protected final BStorageBot bot;
+    public final BStorageBot bot;
+    public final String description;
 
-    public Command(BStorageBot bot) {
+    public Command(BStorageBot bot, String description) {
         this.bot = bot;
+        this.description = description;
     }
 
     public abstract void execute(User user) throws Exception;

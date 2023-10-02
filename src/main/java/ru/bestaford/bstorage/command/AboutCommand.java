@@ -6,7 +6,7 @@ import ru.bestaford.bstorage.BStorageBot;
 public final class AboutCommand extends Command {
 
     public AboutCommand(BStorageBot bot) {
-        super(bot);
+        super(bot, "About this bot");
     }
 
     @Override
