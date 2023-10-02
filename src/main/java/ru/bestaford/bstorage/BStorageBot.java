@@ -30,6 +30,7 @@ public final class BStorageBot {
     public static final String JDBC_PASSWORD = "";
 
     public static final String REGEX_WHITESPACES = "\\s+";
+    public static final String REGEX_EVERY_WORD = "\\b(\\p{L}+)\\b";
 
     public final Logger logger;
     public final TelegramBot bot;
@@ -294,7 +295,7 @@ public final class BStorageBot {
         if (tags == null) {
             replyToMessage(user, messages.getString("file.saved"), message.messageId());
         } else {
-            replyToMessage(user, String.format(messages.getString("file.saved.tags"), tags.replaceAll("\\b(\\p{L}+)\\b", "#$1")), message.messageId());
+            replyToMessage(user, String.format(messages.getString("file.saved.tags"), tags.replaceAll(REGEX_EVERY_WORD, "#$1")), message.messageId());
         }
     }
 
