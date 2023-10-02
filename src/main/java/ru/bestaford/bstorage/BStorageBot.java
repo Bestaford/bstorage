@@ -13,10 +13,7 @@ import com.pengrad.telegrambot.response.BaseResponse;
 import org.flywaydb.core.Flyway;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import ru.bestaford.bstorage.command.AboutCommand;
-import ru.bestaford.bstorage.command.Command;
-import ru.bestaford.bstorage.command.HelpCommand;
-import ru.bestaford.bstorage.command.TopCommand;
+import ru.bestaford.bstorage.command.*;
 import ru.bestaford.bstorage.model.File;
 
 import java.io.IOException;
@@ -59,6 +56,7 @@ public final class BStorageBot {
         commandMap.put("help", new HelpCommand(this));
         commandMap.put("top", new TopCommand(this));
         commandMap.put("about", new AboutCommand(this));
+        commandMap.put("tagme", new TagmeCommand(this));
     }
 
     public void start() {
