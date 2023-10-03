@@ -23,7 +23,7 @@ import java.util.*;
 
 public final class BStorageBot {
 
-    public static final String VERSION = "1.1.0";
+    public static final String VERSION = "1.1.1";
 
     public static final String JDBC_URL = "jdbc:h2:./bstorage";
     public static final String JDBC_USER = "";
