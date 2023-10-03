@@ -72,7 +72,7 @@ public final class BStorageBot {
             }
             return UpdatesListener.CONFIRMED_UPDATES_ALL;
         });
-        logger.info(String.format("bStorage v%s started", VERSION));
+        logger.info(String.format("bstorage v%s started", VERSION));
     }
 
     public void processUpdate(Update update) throws Exception {
