@@ -50,7 +50,7 @@ public final class TopCommand extends Command {
                 tagList.addAll(Arrays.stream(tags.split(BStorageBot.REGEX_WHITESPACES)).map(String::trim).filter(s -> !s.isBlank()).collect(Collectors.toSet()));
             }
         }
-        Set<String> tagSet = new TreeSet<>((o1, o2) -> {
+        Set<String> sortedTagSet = new TreeSet<>((o1, o2) -> {
             if (o1.equals(o2)) {
                 return 0;
             }
@@ -61,8 +61,9 @@ public final class TopCommand extends Command {
             }
             return 1;
         });
-        tagSet.addAll(tagList);
-        List<String> result = new ArrayList<>(tagSet);
+        Set<String> tagSet = new HashSet<>(tagList);
+        sortedTagSet.addAll(tagSet);
+        List<String> result = new ArrayList<>(sortedTagSet);
         if (result.isEmpty()) {
             bot.sendMessage(user, bot.messages.getString("top.empty"));
             return;
