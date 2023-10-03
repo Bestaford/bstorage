@@ -14,6 +14,7 @@ import ru.bestaford.bstorage.BStorageBot;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.util.*;
+import java.util.stream.Collectors;
 
 public final class TopCommand extends Command {
 
@@ -46,7 +47,7 @@ public final class TopCommand extends Command {
         while (resultSet.next()) {
             String tags = resultSet.getString(6);
             if (tags != null) {
-                tagList.addAll(Arrays.stream(tags.split(BStorageBot.REGEX_WHITESPACES)).map(String::trim).filter(s -> !s.isBlank()).toList());
+                tagList.addAll(Arrays.stream(tags.split(BStorageBot.REGEX_WHITESPACES)).map(String::trim).filter(s -> !s.isBlank()).collect(Collectors.toSet()));
             }
         }
         Set<String> tagSet = new TreeSet<>((o1, o2) -> {
