@@ -19,7 +19,7 @@
         <dependency>
             <groupId>com.github.pengrad</groupId>
             <artifactId>java-telegram-bot-api</artifactId>
-            <version>6.9.0</version>
+            <version>6.9.1</version>
         </dependency>
         <dependency>
             <groupId>org.slf4j</groupId>
@@ -49,7 +49,7 @@
         <dependency>
             <groupId>org.flywaydb</groupId>
             <artifactId>flyway-core</artifactId>
-            <version>9.22.2</version>
+            <version>10.1.0</version>
         </dependency>
     </dependencies>
 
