@@ -75,7 +75,7 @@ public final class TopCommand extends Command {
             }
             page.add(result.get(i));
         }
-        StringBuilder text = new StringBuilder(String.format(bot.messages.getString("top.list"), (offset + ITEMS_ON_PAGE) / ITEMS_ON_PAGE, (result.size() + ITEMS_ON_PAGE) / ITEMS_ON_PAGE));
+        StringBuilder text = new StringBuilder(String.format(bot.messages.getString("top.list"), (offset + ITEMS_ON_PAGE) / ITEMS_ON_PAGE, result.size() / ITEMS_ON_PAGE));
         text.append("\n");
         for (String tag : page) {
             text.append(String.format("\n#%s: %d", tag, Collections.frequency(tagList, tag)));
@@ -86,7 +86,7 @@ public final class TopCommand extends Command {
                 getButton("⬅️️", "previous", uuid, offset >= ITEMS_ON_PAGE ? (offset - ITEMS_ON_PAGE) : offset),
                 getButton("\uD83D\uDD01", "refresh", uuid, offset),
                 getButton("➡️", "next", uuid, result.size() > offset + page.size() ? (offset + ITEMS_ON_PAGE) : offset),
-                getButton("⏩", "last", uuid, ITEMS_ON_PAGE * (result.size() / ITEMS_ON_PAGE))
+                getButton("⏩", "last", uuid, ITEMS_ON_PAGE * ((result.size() / ITEMS_ON_PAGE) - 1))
         };
         markup.addRow(buttons);
         if (uuidToMessageMap.containsKey(uuid)) {
