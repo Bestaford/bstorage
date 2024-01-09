@@ -18,7 +18,7 @@ import java.util.stream.Collectors;
 
 public final class TopCommand extends Command {
 
-    public static final int ITEMS_ON_PAGE = 10;
+    public static final int PAGE_SIZE = 10;
 
     public final Map<UUID, Message> uuidToMessageMap;
 
@@ -32,7 +32,7 @@ public final class TopCommand extends Command {
         send(user, 0, UUID.randomUUID(), true);
     }
 
-    public void send(User user, int offset, UUID uuid, boolean isNewRequest) throws Exception {
+    public void send(User user, int page_index, UUID uuid, boolean isNewRequest) throws Exception {
         List<String> tagList = new ArrayList<>();
         PreparedStatement statement = bot.connection.prepareStatement("""
                 SELECT
@@ -69,13 +69,14 @@ public final class TopCommand extends Command {
             return;
         }
         List<String> page = new ArrayList<>();
-        for (int i = offset; page.size() < ITEMS_ON_PAGE; i++) {
+        for (int i = page_index * PAGE_SIZE; page.size() < PAGE_SIZE; i++) {
             if (i < 0 || i >= result.size()) {
                 break;
             }
             page.add(result.get(i));
         }
-        StringBuilder text = new StringBuilder(String.format(bot.messages.getString("top.list"), (offset + ITEMS_ON_PAGE) / ITEMS_ON_PAGE, result.size() / ITEMS_ON_PAGE));
+        int last_page = (int) Math.max(Math.ceil((double) result.size() / PAGE_SIZE) - 1, 0);
+        StringBuilder text = new StringBuilder(String.format(bot.messages.getString("top.list"), page_index + 1, last_page + 1));
         text.append("\n");
         for (String tag : page) {
             text.append(String.format("\n#%s: %d", tag, Collections.frequency(tagList, tag)));
@@ -83,10 +84,10 @@ public final class TopCommand extends Command {
         InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
         InlineKeyboardButton[] buttons = new InlineKeyboardButton[]{
                 getButton("⏪", "first", uuid, 0),
-                getButton("⬅️️", "previous", uuid, offset >= ITEMS_ON_PAGE ? (offset - ITEMS_ON_PAGE) : offset),
-                getButton("\uD83D\uDD01", "refresh", uuid, offset),
-                getButton("➡️", "next", uuid, result.size() > offset + page.size() ? (offset + ITEMS_ON_PAGE) : offset),
-                getButton("⏩", "last", uuid, ITEMS_ON_PAGE * ((result.size() / ITEMS_ON_PAGE) - 1))
+                getButton("⬅️️", "previous", uuid, Math.max(page_index - 1, 0)),
+                getButton("\uD83D\uDD01", "refresh", uuid, page_index),
+                getButton("➡️", "next", uuid, Math.min(page_index + 1, last_page)),
+                getButton("⏩", "last", uuid, last_page)
         };
         markup.addRow(buttons);
         if (uuidToMessageMap.containsKey(uuid)) {
@@ -100,8 +101,8 @@ public final class TopCommand extends Command {
         }
     }
 
-    public InlineKeyboardButton getButton(String text, String name, UUID uuid, int offset) {
-        return new InlineKeyboardButton(text).callbackData(getClass().getSimpleName() + ":" + name + ":" + uuid + ":" + offset);
+    public InlineKeyboardButton getButton(String text, String name, UUID uuid, int page_index) {
+        return new InlineKeyboardButton(text).callbackData(getClass().getSimpleName() + ":" + name + ":" + uuid + ":" + page_index);
     }
 
     @Override
