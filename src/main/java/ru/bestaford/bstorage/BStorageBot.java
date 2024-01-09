@@ -21,7 +21,7 @@ import java.sql.*;
 import java.time.LocalDateTime;
 import java.util.*;
 
-public final class BStorageBot {
+public final class BStorageBot extends TelegramBot {
 
     public static final String VERSION = "1.1.2";
 
@@ -33,7 +33,6 @@ public final class BStorageBot {
     public static final String REGEX_EVERY_WORD = "\\b(\\p{L}+)\\b";
 
     public final Logger logger;
-    public final TelegramBot bot;
     public final Map<String, String> mediaGroupIdToTagsMap;
     public final Map<Long, String> userIdToMessageTextMap;
     public final Map<String, Command> commandMap;
@@ -42,10 +41,11 @@ public final class BStorageBot {
     public final User me;
 
     public BStorageBot(String botToken) throws Exception {
+        super(botToken);
+
         Flyway.configure().dataSource(JDBC_URL, JDBC_USER, JDBC_PASSWORD).load().migrate();
 
         logger = LoggerFactory.getLogger(getClass());
-        bot = new TelegramBot(botToken);
         mediaGroupIdToTagsMap = new HashMap<>();
         userIdToMessageTextMap = new HashMap<>();
         commandMap = new HashMap<>();
@@ -53,15 +53,16 @@ public final class BStorageBot {
         messages = ResourceBundle.getBundle("messages");
         me = executeBotRequest(new GetMe()).user();
 
-        commandMap.put("start", new HelpCommand(this));
-        commandMap.put("help", new HelpCommand(this));
+        HelpCommand helpCommand = new HelpCommand(this);
+        commandMap.put("start", helpCommand);
+        commandMap.put("help", helpCommand);
         commandMap.put("top", new TopCommand(this));
         commandMap.put("about", new AboutCommand(this));
         commandMap.put("tagme", new TagmeCommand(this));
     }
 
     public void start() {
-        bot.setUpdatesListener(updates -> {
+        setUpdatesListener(updates -> {
             for (Update update : updates) {
                 logger.debug(update.toString());
                 try {
@@ -315,14 +316,14 @@ public final class BStorageBot {
 
     public <T extends BaseRequest<T, R>, R extends BaseResponse> R executeBotRequest(BaseRequest<T, R> request) {
         logger.debug(request.toString());
-        R response = bot.execute(request);
+        R response = execute(request);
         logger.debug(response.toString());
         return response;
     }
 
     public <T extends BaseRequest<T, R>, R extends BaseResponse> void executeAsyncBotRequest(T request) {
         logger.debug(request.toString());
-        bot.execute(request, new Callback<T, R>() {
+        execute(request, new Callback<T, R>() {
             @Override
             public void onResponse(T request, R response) {
                 logger.debug(response.toString());
@@ -338,8 +339,8 @@ public final class BStorageBot {
     public void stop() throws Exception {
         logger.info("Shutting down...");
         connection.close();
-        bot.removeGetUpdatesListener();
-        bot.shutdown();
+        removeGetUpdatesListener();
+        shutdown();
     }
 
     public static String getenv(String name) {
