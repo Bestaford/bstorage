@@ -10,6 +10,7 @@ import com.pengrad.telegrambot.request.BaseRequest;
 import com.pengrad.telegrambot.request.GetMe;
 import com.pengrad.telegrambot.request.SendMessage;
 import com.pengrad.telegrambot.response.BaseResponse;
+import okhttp3.OkHttpClient;
 import org.flywaydb.core.Flyway;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,6 +18,8 @@ import ru.bestaford.bstorage.command.*;
 import ru.bestaford.bstorage.model.File;
 
 import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.net.Proxy;
 import java.sql.*;
 import java.time.LocalDateTime;
 import java.util.*;
@@ -40,8 +43,20 @@ public final class BStorageBot extends TelegramBot {
     public final ResourceBundle messages;
     public final User me;
 
-    public BStorageBot(String botToken) throws Exception {
+    public BStorageBot(String botToken, OkHttpClient client) throws Exception {
         super(botToken);
+
+        try {
+            java.lang.reflect.Field clientField = TelegramBot.class.getDeclaredField("api");
+            clientField.setAccessible(true);
+            Object telegramBotClient = clientField.get(this);
+
+            java.lang.reflect.Field okHttpField = telegramBotClient.getClass().getDeclaredField("client");
+            okHttpField.setAccessible(true);
+            okHttpField.set(telegramBotClient, client);
+        } catch (Exception e) {
+            throw new RuntimeException("Не удалось внедрить кастомный OkHttpClient", e);
+        }
 
         Flyway.configure().dataSource(JDBC_URL, JDBC_USER, JDBC_PASSWORD).load().migrate();
 
@@ -348,7 +363,9 @@ public final class BStorageBot extends TelegramBot {
     }
 
     public static void main(String[] args) throws Exception {
-        BStorageBot bStorageBot = new BStorageBot(getenv("BSTORAGE_BOT_TOKEN"));
+        Proxy proxy = new Proxy(Proxy.Type.HTTP, new InetSocketAddress(getenv("PROXY_ADDRESS"), Integer.parseInt(getenv("PROXY_PORT"))));
+        OkHttpClient client = new OkHttpClient.Builder().proxy(proxy).build();
+        BStorageBot bStorageBot = new BStorageBot(getenv("BSTORAGE_BOT_TOKEN"), client);
         bStorageBot.start();
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             try {
