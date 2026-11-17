@@ -18,8 +18,6 @@ import ru.bestaford.bstorage.command.*;
 import ru.bestaford.bstorage.model.File;
 
 import java.io.IOException;
-import java.net.InetSocketAddress;
-import java.net.Proxy;
 import java.sql.*;
 import java.time.LocalDateTime;
 import java.util.*;
@@ -363,8 +361,9 @@ public final class BStorageBot extends TelegramBot {
     }
 
     public static void main(String[] args) throws Exception {
-        Proxy proxy = new Proxy(Proxy.Type.HTTP, new InetSocketAddress(getenv("PROXY_ADDRESS"), Integer.parseInt(getenv("PROXY_PORT"))));
-        OkHttpClient client = new OkHttpClient.Builder().proxy(proxy).build();
+//        Proxy proxy = new Proxy(Proxy.Type.HTTP, new InetSocketAddress(getenv("PROXY_ADDRESS"), Integer.parseInt(getenv("PROXY_PORT"))));
+//        OkHttpClient client = new OkHttpClient.Builder().proxy(proxy).build();
+        OkHttpClient client = new OkHttpClient.Builder().build();
         BStorageBot bStorageBot = new BStorageBot(getenv("BSTORAGE_BOT_TOKEN"), client);
         bStorageBot.start();
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
